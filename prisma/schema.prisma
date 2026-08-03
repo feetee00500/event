@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  EVENT_ADMIN
+  EVENT_STAFF
+  VIEWER
+}
+
+enum EventAssignmentRole {
+  EVENT_ADMIN
+  EVENT_STAFF
+  VIEWER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EventAccessMode {
+  SINGLE_ENTRY
+  REENTRY
+  MULTI_DAY
+}
+
+enum TicketStatus {
+  ACTIVE
+  CHECKED_IN
+  CANCELLED
+  EXPIRED
+}
+
+enum AttendeeStatus {
+  REGISTERED
+  QR_GENERATED
+  DELIVERED
+  CHECKED_IN
+  CANCELLED
+  NO_SHOW
+}
+
+enum CheckinResult {
+  SUCCESS
+  ALREADY_CHECKED_IN
+  INVALID_TOKEN
+  CANCELLED
+  EXPIRED
+  TOO_EARLY
+  TOO_LATE
+  EVENT_MISMATCH
+  MANUAL_CHECKIN
+}
+
+model User {
+  id            String            @id @default(cuid())
+  name          String
+  email         String            @unique
+  passwordHash  String?
+  role          UserRole
+  isActive      Boolean           @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  createdEvents Event[]           @relation("EventCreatedBy")
+  assignments   EventAssignment[]
+  checkins      Checkin[]         @relation("CheckinScannedBy")
+  auditLogs     AuditLog[]
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model Event {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  venue          String
+  imageUrl       String?
+  startAt        DateTime
+  endAt          DateTime
+  checkinOpenAt  DateTime
+  checkinCloseAt DateTime
+  status         EventStatus     @default(DRAFT)
+  accessMode     EventAccessMode @default(SINGLE_ENTRY)
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  createdBy   User              @relation("EventCreatedBy", fields: [createdById], references: [id])
+  assignments EventAssignment[]
+  attendees   Attendee[]
+  tickets     Ticket[]
+  gates       Gate[]
+  checkins    Checkin[]
+  auditLogs   AuditLog[]
+
+  @@index([status, startAt])
+  @@index([createdById])
+}
+
+model EventAssignment {
+  id        String              @id @default(cuid())
+  eventId   String
+  userId    String
+  role      EventAssignmentRole
+  createdAt DateTime            @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId, role])
+}
+
+model Attendee {
+  id            String         @id @default(cuid())
+  eventId       String
+  title         String?
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  company       String?
+  referenceCode String?
+  note          String?
+  status        AttendeeStatus @default(REGISTERED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@index([eventId, createdAt])
+  @@index([email])
+  @@index([referenceCode])
+  @@index([status])
+}
+
+model Ticket {
+  id           String       @id @default(cuid())
+  eventId      String
+  attendeeId   String
+  ticketNumber String       @unique
+  ticketType   String
+  qrTokenHash  String       @unique
+  status       TicketStatus @default(ACTIVE)
+  issuedAt     DateTime     @default(now())
+  expiresAt    DateTime?
+  checkedInAt  DateTime?
+  cancelledAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee Attendee  @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+  checkins Checkin[]
+
+  @@index([eventId, status])
+  @@index([attendeeId])
+  @@index([expiresAt])
+}
+
+model Gate {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  description String?
+  location    String?
+  deviceCode  String?  @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkins Checkin[]
+
+  @@index([eventId, isActive])
+}
+
+model Checkin {
+  id          String        @id @default(cuid())
+  eventId     String
+  ticketId    String?
+  gateId      String?
+  scannedById String?
+  deviceId    String?
+  result      CheckinResult
+  scannedAt   DateTime      @default(now())
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticket    Ticket? @relation(fields: [ticketId], references: [id])
+  gate      Gate?   @relation(fields: [gateId], references: [id])
+  scannedBy User?   @relation("CheckinScannedBy", fields: [scannedById], references: [id])
+
+  @@index([eventId, scannedAt])
+  @@index([ticketId, result])
+  @@index([gateId])
+  @@index([scannedById])
+  @@index([result])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  eventId    String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id])
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

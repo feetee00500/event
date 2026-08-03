@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0d8f83;
+  --ink: #002756;
+  --muted: #5f7386;
+  --line: #cbd8e4;
+  --canvas: #eef4f7;
+  --surface: #ffffff;
+  --paper: #f5faf9;
+  --success: #087a6f;
+  --warning: #9a6700;
+  --danger: #b42318;
+  --signal: #22c7ae;
+  --info: #146c94;
+  --header-height: 64px;
+  --sidebar-width: 288px;
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; background: var(--canvas); }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: "Kanit", "Noto Sans Thai", "Leelawadee UI", "Segoe UI", Tahoma, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+button:disabled { cursor: not-allowed; }
+a { color: inherit; text-decoration: none; }
+::selection { background: rgba(13, 164, 142, 0.2); }
+
+@layer components {
+  .focus-ring { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2; }
+  .surface { @apply rounded-lg border border-line bg-white shadow-card; }
+  .mono { font-family: "IBM Plex Mono", "Cascadia Code", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .eyebrow { @apply flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted; }
+  .eyebrow::before { content: ""; width: 20px; height: 2px; background: var(--primary); }
+  .table-scroll { @apply overflow-x-auto; }
+  .data-table { @apply min-w-full border-collapse text-left text-sm; }
+  .data-table th { @apply whitespace-nowrap border-b border-line bg-paper px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-muted; }
+  .data-table td { @apply border-b border-line px-4 py-4 align-middle; }
+  .touch-target { @apply inline-flex min-h-11 min-w-11 items-center justify-center; }
+  .print-only { display: none; }
+  .data-table tbody tr:last-child td { @apply border-b-0; }
+  .shimmer { background: linear-gradient(90deg, #e4edf1 25%, #f5faf9 37%, #e4edf1 63%); background-size: 400% 100%; }
+  .metric-value { @apply mono text-[2rem] font-semibold leading-none tracking-[-0.04em] text-ink; }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
