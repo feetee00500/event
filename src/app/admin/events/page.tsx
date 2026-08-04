@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { InlineNotice } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { EventList } from "@/components/event/event-list";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { getEvents } from "@/lib/server-data";
 import { PRODUCT_NAME } from "@/lib/branding";
 
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) return null;
   try {
     const events = await getEvents(user);

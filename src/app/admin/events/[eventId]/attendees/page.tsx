@@ -15,8 +15,10 @@ export default async function AttendeesPage({ params }: Props) {
   if (!user) return null;
   const { eventId } = await params;
   try {
-    const event = await getEvent(user, eventId);
-    const attendees = event ? await getAttendees(user, eventId, true) : null;
+    const [event, attendees] = await Promise.all([
+      getEvent(user, eventId),
+      getAttendees(user, eventId, true),
+    ]);
     if (!event || !attendees) return <InlineNotice tone="error">ไม่พบ Event</InlineNotice>;
     const rows: AttendeeRow[] = attendees.map((attendee) => ({
       id: attendee.id,

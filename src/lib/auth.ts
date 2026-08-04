@@ -55,5 +55,12 @@ async function resolveCurrentUser(): Promise<CurrentUser | null> {
 
 export const getCurrentUser = cache(resolveCurrentUser);
 
+export async function getSessionUser(): Promise<CurrentUser | null> {
+  if (isDevelopmentAuthBypassEnabled()) return resolveCurrentUser();
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return { id: session.user.id, name: session.user.name ?? "", email: session.user.email ?? "", role: session.user.role, isActive: true };
+}
+
 export class AuthRequiredError extends Error { constructor(message = "กรุณาเข้าสู่ระบบ") { super(message); this.name = "AuthRequiredError"; } }
 export async function requireUser(): Promise<CurrentUser> { const user = await getCurrentUser(); if (!user) throw new AuthRequiredError(); return user; }

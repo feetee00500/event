@@ -14,8 +14,10 @@ export default async function CheckinsPage({ params }: Props) {
   if (!user) return null;
   const { eventId } = await params;
   try {
-    const event = await getEvent(user, eventId);
-    const checkins = event ? await getCheckins(user, eventId, true) : null;
+    const [event, checkins] = await Promise.all([
+      getEvent(user, eventId),
+      getCheckins(user, eventId, true),
+    ]);
     if (!event || !checkins) return <InlineNotice tone="error">ไม่พบ Event</InlineNotice>;
     const rows: CheckinRow[] = checkins.map((item) => ({ id: item.id, result: item.result, scannedAt: item.scannedAt.toISOString(), gate: item.gate?.name ?? "—", staff: item.scannedBy?.name ?? "ระบบ", deviceId: item.deviceId, ticketNumber: item.ticket?.ticketNumber ?? "—", attendee: item.ticket ? `${item.ticket.attendee.firstName} ${item.ticket.attendee.lastName}` : "ไม่พบ Ticket", ticketType: item.ticket?.ticketType ?? "—" }));
     return <><PageHeader eyebrow={event.name} title="ประวัติ Check-in" description="ตรวจสอบผลการสแกนล่าสุด ค้นหาความผิดปกติ และกรองตาม Gate หรือ Staff" /><EventTabs eventId={eventId} active="/checkins" canManage={canManageEvent(user.role, event.assignments[0]?.role)} /><div className="mt-6"><CheckinHistory initialRows={rows} /></div></>;

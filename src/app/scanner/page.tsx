@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CalendarDays, ClipboardCheck } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { getEvents } from "@/lib/server-data";
 import { canCheckIn } from "@/lib/permissions";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/ui/badge";
 export const dynamic = "force-dynamic";
 
 export default async function ScannerSelectPage() {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) return null;
   try {
     const events = await getEvents(user);

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { EventForm } from "@/components/event/event-form";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { canManageEvent } from "@/lib/permissions";
 import { getEvent } from "@/lib/server-data";
 import { PRODUCT_NAME } from "@/lib/branding";
@@ -11,7 +11,7 @@ type Props = { params: Promise<{ eventId: string }> };
 export const dynamic = "force-dynamic";
 
 export default async function EditEventPage({ params }: Props) {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) return null;
   const { eventId } = await params;
   const event = await getEvent(user, eventId);

@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Ban, Camera, CameraOff, CheckCircle2, ChevronDown, CircleAlert, Clock3, Flashlight, Keyboard, Loader2, Maximize2, Minimize2, RefreshCw, ShieldAlert, Wifi, WifiOff, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import { InlineNotice } from "@/components/ui/feedback";
 
 type Gate = { id: string; name: string };
@@ -74,7 +73,116 @@ export function ScannerClient({ eventId, eventName, gates }: { eventId: string; 
   const gateName = gates.find((gate) => gate.id === gateId)?.name ?? "ยังไม่ได้เลือก Gate";
   const cameraLabel = cameraDevices.find((camera) => camera.id === cameraId)?.label ?? "กล้องหลัก";
 
-  return <div className="space-y-5"><Card><CardHeader><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="eyebrow">Scanner mode</p><h1 className="mt-1 text-xl font-bold">{eventName}</h1><p className="mt-1 text-sm text-muted">ตรวจที่ <span className="font-semibold text-ink">{gateName}</span></p></div><div className="flex flex-wrap items-center gap-3 text-xs font-semibold"><span className={`flex items-center gap-1.5 ${online ? "text-success" : "text-danger"}`}><span className={`h-2 w-2 rounded-full ${online ? "bg-success" : "bg-danger"}`} />{online ? <><Wifi size={15} />Online</> : <><WifiOff size={15} />Offline</>}</span><span className="rounded-full bg-[#eef6ff] px-2.5 py-1 text-primary">รอบนี้ {sessionCount} คน</span></div></div></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-2"><Field label="Gate ที่ตรวจ"><Select value={gateId} onChange={(e) => setGateId(e.target.value)} disabled={running}>{gates.length ? gates.map((gate) => <option key={gate.id} value={gate.id}>{gate.name}</option>) : <option value="">ยังไม่มี Gate</option>}</Select></Field>{cameraDevices.length > 1 ? <Field label="กล้อง"><Select value={cameraId} onChange={(e) => setCameraId(e.target.value)} disabled={running}>{cameraDevices.map((camera) => <option key={camera.id} value={camera.id}>{camera.label}</option>)}</Select></Field> : null}</div>{!gates.length ? <div className="mt-4"><InlineNotice tone="info">กิจกรรมนี้ยังไม่มี Gate ที่เปิดใช้งาน กรุณาสร้าง Gate ก่อนเริ่มสแกน</InlineNotice></div> : null}{cameraError ? <div className="mt-4"><InlineNotice tone="error">{cameraError}</InlineNotice></div> : null}{cameraNotice ? <div className="mt-4"><InlineNotice tone="info">{cameraNotice}</InlineNotice></div> : null}<div ref={frameRef} className="relative mt-5 overflow-hidden rounded-md bg-ink"><video ref={videoRef} className="aspect-[4/3] w-full object-cover" muted playsInline aria-label={`ภาพจากกล้องสำหรับสแกน QR ${cameraLabel}`} />{!running ? <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink px-6 text-center text-white"><Camera size={38} className="text-[#22C7AE]" /><p className="mt-4 font-semibold">พร้อมสแกน QR Code</p><p className="mt-1 text-sm text-[#A9BFD3]">จัด QR ให้อยู่ในกรอบกล้อง</p></div> : <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><div className="h-52 w-52 rounded-md border-2 border-[#22C7AE] shadow-[0_0_0_999px_rgba(36,36,36,0.38)]" /></div>}<div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-wrap justify-center gap-2">{running ? <Button variant="secondary" onClick={stopScanner}><CameraOff size={17} />หยุดกล้อง</Button> : <Button variant="secondary" className="bg-white text-ink hover:bg-paper" onClick={() => void startScanner()} disabled={!gateId || !gates.length || busy}><Camera size={17} />เปิดกล้อง</Button>}{running && cameraDevices.length > 1 ? <Button variant="secondary" onClick={() => void switchCamera()}><RefreshCw size={17} />สลับกล้อง</Button> : null}{running ? <Button variant="secondary" aria-label="สลับไฟแฟลช" onClick={() => void toggleTorch()}><Flashlight size={17} />{torch ? "ปิดไฟ" : "ไฟ"}</Button> : null}<Button variant="secondary" aria-label={fullscreen ? "ออกจากเต็มจอ" : "เปิดเต็มจอ"} onClick={() => void toggleFullscreen}>{fullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{fullscreen ? "ย่อ" : "เต็มจอ"}</Button></div></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><Button variant="secondary" className="flex-1" onClick={() => setManualOpen((value) => !value)}><Keyboard size={17} />กรอก Ticket Number เอง<ChevronDown size={15} /></Button><Button variant="ghost" onClick={() => { setResult(null); setCameraError(""); }}><RefreshCw size={16} />ล้างผลลัพธ์</Button></div>{manualOpen ? <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => void submitManual(event)}><Input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="เช่น EVT-2026-AB12CD34" autoFocus /><Button type="submit" disabled={!manual.trim() || busy}>{busy ? <Loader2 size={16} className="animate-spin" /> : null}ตรวจสอบ</Button></form> : null}</CardContent></Card>{lastScan ? <div className="flex flex-col gap-1 rounded-lg border border-line bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="text-muted">สแกนสำเร็จล่าสุด: <strong className="text-ink">{lastScan.name}</strong></span><span className="mono text-xs text-muted">{new Intl.DateTimeFormat("th-TH", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date(lastScan.at))}</span></div> : null}{result ? <ScanResult result={result} onNext={() => { setResult(null); void startScanner(); }} /> : <div className="rounded-sm border border-dashed border-line px-5 py-4 text-center text-sm text-muted" aria-live="polite">ผลการตรวจสอบจะแสดงที่นี่ทันทีหลังสแกน</div>}</div>;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="eyebrow">Scanner mode</p>
+          <h1 className="mt-1 truncate text-lg font-bold sm:text-xl">{eventName}</h1>
+          <p className="mt-1 text-sm text-muted">ตรวจที่ <span className="font-semibold text-ink">{gateName}</span></p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs font-semibold">
+          <span className={`flex items-center gap-1.5 ${online ? "text-success" : "text-danger"}`}><span className={`h-2 w-2 rounded-full ${online ? "bg-success" : "bg-danger"}`} />{online ? <><Wifi size={15} />Online</> : <><WifiOff size={15} />Offline</>}</span>
+          <span className="rounded-full bg-[#eef6ff] px-2.5 py-1 text-primary">รอบนี้ {sessionCount} คน</span>
+        </div>
+      </div>
+
+      <div ref={frameRef} className="relative overflow-hidden rounded-md bg-ink">
+        <video ref={videoRef} className="aspect-square w-full object-cover" muted playsInline aria-label={`ภาพจากกล้องสำหรับสแกน QR ${cameraLabel}`} />
+        {!running ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink px-6 text-center text-white"><Camera size={38} className="text-[#22C7AE]" /><p className="mt-4 font-semibold">พร้อมสแกน QR Code</p><p className="mt-1 text-sm text-[#A9BFD3]">จัด QR ให้อยู่ในกรอบกล้อง</p></div>
+        ) : (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><div className="h-56 w-56 rounded-md border-2 border-[#22C7AE] shadow-[0_0_0_999px_rgba(36,36,36,0.38)]" /></div>
+        )}
+        {fullscreen ? (
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap justify-center gap-2 bg-gradient-to-t from-ink/70 to-transparent px-4 pb-5 pt-10">
+            {running ? <Button variant="secondary" onClick={stopScanner}><CameraOff size={17} />หยุดกล้อง</Button> : <Button variant="secondary" className="bg-white text-ink hover:bg-paper" onClick={() => void startScanner()} disabled={!gateId || !gates.length || busy}><Camera size={17} />เปิดกล้อง</Button>}
+            {running && cameraDevices.length > 1 ? <Button variant="secondary" onClick={() => void switchCamera()}><RefreshCw size={17} />สลับกล้อง</Button> : null}
+            {running ? <Button variant="secondary" aria-label="สลับไฟแฟลช" onClick={() => void toggleTorch()}><Flashlight size={17} />{torch ? "ปิดไฟ" : "ไฟ"}</Button> : null}
+            <Button variant="secondary" aria-label="ออกจากเต็มจอ" onClick={() => void toggleFullscreen()}><Minimize2 size={17} />ย่อ</Button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {gates.length ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-line bg-white px-3 py-2.5">
+            <label htmlFor="scanner-gate" className="mono shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">Gate</label>
+            <select id="scanner-gate" value={gateId} onChange={(e) => setGateId(e.target.value)} disabled={running} className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-ink focus:outline-none disabled:opacity-50">{gates.map((gate) => <option key={gate.id} value={gate.id}>{gate.name}</option>)}</select>
+          </div>
+        ) : null}
+        {cameraDevices.length > 1 ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-line bg-white px-3 py-2.5">
+            <label htmlFor="scanner-camera" className="mono shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">กล้อง</label>
+            <select id="scanner-camera" value={cameraId} onChange={(e) => setCameraId(e.target.value)} disabled={running} className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-ink focus:outline-none disabled:opacity-50">{cameraDevices.map((camera) => <option key={camera.id} value={camera.id}>{camera.label}</option>)}</select>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {running ? <Button variant="secondary" onClick={stopScanner}><CameraOff size={17} />หยุดกล้อง</Button> : <Button variant="secondary" className="bg-white text-ink hover:bg-paper" onClick={() => void startScanner()} disabled={!gateId || !gates.length || busy}><Camera size={17} />เปิดกล้อง</Button>}
+        {running && cameraDevices.length > 1 ? <Button variant="secondary" onClick={() => void switchCamera()}><RefreshCw size={17} />สลับกล้อง</Button> : null}
+        {running ? <Button variant="secondary" aria-label="สลับไฟแฟลช" onClick={() => void toggleTorch()}><Flashlight size={17} />{torch ? "ปิดไฟ" : "ไฟ"}</Button> : null}
+        <Button variant="secondary" aria-label={fullscreen ? "ออกจากเต็มจอ" : "เปิดเต็มจอ"} onClick={() => void toggleFullscreen()}>{fullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{fullscreen ? "ย่อ" : "เต็มจอ"}</Button>
+        <Button variant="secondary" onClick={() => setManualOpen((value) => !value)}><Keyboard size={17} />กรอก Ticket Number{manualOpen ? <ChevronDown size={15} /> : null}</Button>
+      </div>
+
+      {!gates.length ? <InlineNotice tone="info">กิจกรรมนี้ยังไม่มี Gate ที่เปิดใช้งาน กรุณาสร้าง Gate ก่อนเริ่มสแกน</InlineNotice> : null}
+      {cameraError ? <InlineNotice tone="error">{cameraError}</InlineNotice> : null}
+      {cameraNotice ? <InlineNotice tone="info">{cameraNotice}</InlineNotice> : null}
+
+      {manualOpen ? (
+        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => void submitManual(event)}>
+          <Input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="เช่น EVT-2026-AB12CD34" autoFocus />
+          <Button type="submit" disabled={!manual.trim() || busy}>{busy ? <Loader2 size={16} className="animate-spin" /> : null}ตรวจสอบ</Button>
+        </form>
+      ) : null}
+
+      {lastScan ? (
+        <div className="flex flex-col gap-1 rounded-lg border border-line bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted">สแกนสำเร็จล่าสุด: <strong className="text-ink">{lastScan.name}</strong></span>
+          <span className="mono text-xs text-muted">{new Intl.DateTimeFormat("th-TH", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date(lastScan.at))}</span>
+        </div>
+      ) : null}
+
+      {result ? (
+        <ScanResult result={result} onNext={() => { setResult(null); void startScanner(); }} />
+      ) : (
+        <div className="rounded-sm border border-dashed border-line px-5 py-4 text-center text-sm text-muted" aria-live="polite">ผลการตรวจสอบจะแสดงที่นี่ทันทีหลังสแกน</div>
+      )}
+    </div>
+  );
 }
 
-function ScanResult({ result, onNext }: { result: Result; onNext: () => void }) { const config = resultLabels[result.status] ?? { title: result.success ? "Check-in สำเร็จ" : "ตรวจสอบไม่สำเร็จ", detail: result.message, tone: result.success ? "success" : "error", icon: result.success ? CheckCircle2 : CircleAlert }; const Icon = config.icon; const toneClass = config.tone === "success" ? { card: "border-[#b8d8ff]", icon: "bg-[#e4faf3] text-[#0761d1]", title: "text-[#0761d1]" } : config.tone === "warning" ? { card: "border-[#f1df9f]", icon: "bg-[#ffefcf] text-[#8a6500]", title: "text-[#8a4b09]" } : { card: "border-[#f4b7bb]", icon: "bg-[#fff4f4] text-danger", title: "text-danger" }; return <Card className={toneClass.card}><CardContent><div className="flex items-start gap-3"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${toneClass.icon}`}><Icon size={22} /></span><div><p className={`font-bold ${toneClass.title}`}>{config.title}</p><p className="mt-1 text-sm text-muted">{config.detail}</p>{result.success && result.attendee ? <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><p><span className="text-muted">ผู้เข้าร่วม: </span><strong>{result.attendee.name}</strong></p><p><span className="text-muted">ประเภท: </span><strong>{result.attendee.ticketType}</strong></p><p><span className="text-muted">เวลา: </span><strong>{result.checkedInAt ? new Intl.DateTimeFormat("th-TH", { timeStyle: "short", dateStyle: "medium", timeZone: "Asia/Bangkok" }).format(new Date(result.checkedInAt)) : "—"}</strong></p><p><span className="text-muted">Gate: </span><strong>{result.gate?.name ?? "—"}</strong></p></div> : null}{!result.success && result.status === "ALREADY_CHECKED_IN" && result.firstCheckedInAt ? <p className="mt-3 text-sm text-muted">Check-in ครั้งแรก {new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date(result.firstCheckedInAt))} · {result.gateName ?? "ไม่ทราบ Gate"}</p> : null}{result.status === "TOO_EARLY" && result.checkinOpenAt ? <p className="mt-3 text-sm text-muted">เปิด Check-in เวลา {new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date(result.checkinOpenAt))}</p> : null}</div></div><div className="mt-5 flex flex-col gap-2 sm:flex-row"><Button className="flex-1" onClick={onNext}><Camera size={17} />สแกนถัดไป</Button><Button variant="secondary" onClick={() => window.setTimeout(() => window.location.reload(), 0)}><RefreshCw size={16} />รีเฟรชหน้า</Button></div></CardContent></Card>; }
+function ScanResult({ result, onNext }: { result: Result; onNext: () => void }) {
+  const config = resultLabels[result.status] ?? { title: result.success ? "Check-in สำเร็จ" : "ตรวจสอบไม่สำเร็จ", detail: result.message, tone: result.success ? "success" : "error", icon: result.success ? CheckCircle2 : CircleAlert };
+  const Icon = config.icon;
+  const sheetClass = config.tone === "success" ? "border-[#b8d8ff]" : config.tone === "warning" ? "border-[#f1df9f]" : "border-[#f4b7bb]";
+  const iconClass = config.tone === "success" ? "bg-[#e4faf3] text-[#0761d1]" : config.tone === "warning" ? "bg-[#ffefcf] text-[#8a6500]" : "bg-[#fff4f4] text-danger";
+  const titleClass = config.tone === "success" ? "text-[#0761d1]" : config.tone === "warning" ? "text-[#8a4b09]" : "text-danger";
+  return (
+    <div className={`fixed inset-x-0 bottom-0 z-[300] border-t border-line bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-card md:static md:mt-0 md:rounded-md md:border md:px-5 md:pb-5 md:shadow-none ${sheetClass}`} role="status" aria-live="polite">
+      <div className="flex items-start gap-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconClass}`}><Icon size={22} /></span>
+        <div>
+          <p className={`font-bold ${titleClass}`}>{config.title}</p>
+          <p className="mt-1 text-sm text-muted">{config.detail}</p>
+          {result.success && result.attendee ? (
+            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <p><span className="text-muted">ผู้เข้าร่วม: </span><strong>{result.attendee.name}</strong></p>
+              <p><span className="text-muted">ประเภท: </span><strong>{result.attendee.ticketType}</strong></p>
+              <p><span className="text-muted">เวลา: </span><strong>{result.checkedInAt ? new Intl.DateTimeFormat("th-TH", { timeStyle: "short", dateStyle: "medium", timeZone: "Asia/Bangkok" }).format(new Date(result.checkedInAt)) : "—"}</strong></p>
+              <p><span className="text-muted">Gate: </span><strong>{result.gate?.name ?? "—"}</strong></p>
+            </div>
+          ) : null}
+          {!result.success && result.status === "ALREADY_CHECKED_IN" && result.firstCheckedInAt ? <p className="mt-3 text-sm text-muted">Check-in ครั้งแรก {new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date(result.firstCheckedInAt))} · {result.gateName ?? "ไม่ทราบ Gate"}</p> : null}
+          {result.status === "TOO_EARLY" && result.checkinOpenAt ? <p className="mt-3 text-sm text-muted">เปิด Check-in เวลา {new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date(result.checkinOpenAt))}</p> : null}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button className="flex-1" onClick={onNext}><Camera size={17} />สแกนถัดไป</Button>
+        <Button variant="secondary" onClick={() => window.setTimeout(() => window.location.reload(), 0)}><RefreshCw size={16} />รีเฟรชหน้า</Button>
+      </div>
+    </div>
+  );
+}

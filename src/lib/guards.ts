@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { AuthRequiredError, auth, isDevelopmentAuthBypassEnabled, requireUser, type CurrentUser } from "@/lib/auth";
+import { AuthRequiredError, getSessionUser, requireUser, type CurrentUser } from "@/lib/auth";
 import { canCheckIn, canManageEvent, eventScope, hasPermission, type Permission } from "@/lib/permissions";
 
 export class ForbiddenError extends Error {
@@ -31,8 +31,7 @@ export async function requireAuthenticatedUser(): Promise<CurrentUser> {
 }
 
 export async function requireCheckinUser(): Promise<CurrentUser> {
-  if (isDevelopmentAuthBypassEnabled()) return requireUser();
-  const session = await auth();
-  if (!session?.user?.id) throw new AuthRequiredError();
-  return { id: session.user.id, name: session.user.name ?? "", email: session.user.email ?? "", role: session.user.role, isActive: true };
+  const user = await getSessionUser();
+  if (!user) throw new AuthRequiredError();
+  return user;
 }

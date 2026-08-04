@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EventCard } from "@/components/event/event-card";
 import { InlineNotice } from "@/components/ui/feedback";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/server-data";
 import { EVENT_SCOPE_NAME, PRODUCT_NAME } from "@/lib/branding";
 import { hasPermission } from "@/lib/permissions";
@@ -18,7 +18,7 @@ function Metric({ label, value, detail, icon: Icon }: { label: string; value: st
 }
 
 export default async function DashboardPage() {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) return null;
   const data = await getDashboardData(user);
   const project = data.latestEvents[0];

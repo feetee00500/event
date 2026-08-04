@@ -1,6 +1,6 @@
 
 import { BarChart3, CalendarClock, CheckCircle2, Clock3, Edit3, MapPin, QrCode, Ticket, Users } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { canCheckIn, canManageEvent } from "@/lib/permissions";
 import { getEvent } from "@/lib/server-data";
 import { prisma } from "@/lib/db";
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 const eventLabels: Record<string, string> = { DRAFT: "ฉบับร่าง", PUBLISHED: "เผยแพร่", ACTIVE: "กำลังใช้งาน", COMPLETED: "เสร็จสิ้น", CANCELLED: "ยกเลิก" };
 
 export default async function EventDetailPage({ params }: Props) {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) return null;
   const { eventId } = await params;
   try {
