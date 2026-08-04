@@ -22,6 +22,7 @@ describe("requireEvent authorization", () => {
   it("blocks Staff from event settings and user management permissions", async () => {
     await expect(requireEvent(user("EVENT_STAFF"), "event-a", "events:write")).rejects.toBeInstanceOf(ForbiddenError);
     await expect(requireEvent(user("EVENT_STAFF"), "event-a", "users:write")).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(requireEvent(user("EVENT_STAFF"), "event-a", "reports:read")).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("hides an unassigned event from Event Admin", async () => {

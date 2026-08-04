@@ -6,11 +6,12 @@ import { getEvent } from "@/lib/server-data";
 import { prisma } from "@/lib/db";
 import { formatBangkokDateTime, formatBangkokTime } from "@/lib/timezone";
 import { Breadcrumbs } from "@/components/app-shell/breadcrumbs";
+import { PageHeader } from "@/components/app-shell/page-header";
 import { EventTabs } from "@/components/event/event-tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { InlineNotice } from "@/components/ui/feedback";
+import { DataLoadNotice, InlineNotice } from "@/components/ui/feedback";
 import { DeleteEventButton } from "@/components/event/delete-event-button";
 import { PRODUCT_NAME } from "@/lib/branding";
 
@@ -27,7 +28,7 @@ export default async function EventDetailPage({ params }: Props) {
       getEvent(user, eventId),
       prisma.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
     ]);
-    if (!event) return <InlineNotice tone="error">ไม่พบ Event หรือคุณไม่ได้รับมอบหมายงานนี้</InlineNotice>;
+    if (!event) return <><PageHeader eyebrow="Event" title="รายละเอียดกิจกรรม" description="ข้อมูลกิจกรรมและสถิติการเข้าร่วมงาน" /><EventTabs eventId={eventId} canManage={false} /><div className="mt-6"><InlineNotice tone="error">ไม่พบ Event หรือคุณไม่ได้รับมอบหมายงานนี้</InlineNotice></div></>;
     const rate = event._count.attendees ? Math.min(100, Math.round((checkedInCount / event._count.attendees) * 100)) : 0;
     const canWrite = canManageEvent(user.role, event.assignments[0]?.role);
     const canScan = canCheckIn(user.role, event.assignments[0]?.role);
@@ -44,9 +45,7 @@ export default async function EventDetailPage({ params }: Props) {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_.9fr]"><Card><CardHeader><p className="eyebrow">Event information</p><h2 className="mt-2 text-lg font-semibold">ข้อมูลกิจกรรม</h2></CardHeader><CardContent><dl className="grid gap-5 sm:grid-cols-2"><Info label="เริ่มงาน" value={formatBangkokDateTime(event.startAt)} /><Info label="สิ้นสุดงาน" value={formatBangkokDateTime(event.endAt)} /><Info label="รูปแบบการเข้า" value={{ SINGLE_ENTRY: "เข้าได้ครั้งเดียว", REENTRY: "เข้าออกได้หลายครั้ง", MULTI_DAY: "งานหลายวัน" }[event.accessMode]} /><Info label="สถานที่" value={event.venue} /></dl>{event.description ? <div className="mt-6 border-t border-line pt-5"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">รายละเอียด</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">{event.description}</p></div> : null}</CardContent></Card><Card><CardHeader><p className="eyebrow">Operational alert</p><h2 className="mt-2 text-lg font-semibold">สิ่งที่ควรตรวจ</h2></CardHeader><CardContent className="space-y-3 text-sm"><p className="flex items-start gap-2"><span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-success" />ตรวจช่วงเปิด–ปิด Check-in ให้ตรงกับแผนงาน</p><p className="flex items-start gap-2"><span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-signal" />ทดสอบ Gate และอุปกรณ์ก่อนเริ่มรับผู้เข้าร่วม</p><p className="flex items-start gap-2"><span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-warning" />ตรวจรายชื่อและสถานะ QR ก่อนส่งบัตร</p></CardContent></Card></section>
     </>;
-  } catch {
-    return <InlineNotice tone="error">ไม่สามารถโหลดรายละเอียด Event ได้</InlineNotice>;
-  }
+  } catch (error) { console.error("[EventDetailPage] data load failed", error); return <><PageHeader eyebrow="Event" title="รายละเอียดกิจกรรม" description="ข้อมูลกิจกรรมและสถิติการเข้าร่วมงาน" /><EventTabs eventId={eventId} canManage={false} /><div className="mt-6"><DataLoadNotice resource="รายละเอียด Event" /></div></>; }
 }
 
 function Metric({ icon: Icon, label, value, detail, tone = "primary" }: { icon: typeof Users; label: string; value: string | number; detail: string; tone?: "primary" | "success" }) { const colors = tone === "success" ? "text-success bg-[#eef6ff]" : "text-primary bg-[#eef6ff]"; return <Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><span className={`flex h-9 w-9 items-center justify-center rounded-lg ${colors}`}><Icon size={18} aria-hidden="true" /></span><span className="text-right text-xs text-muted">{detail}</span></div><p className="metric-value mt-4">{value}</p><p className="mt-2 text-sm font-semibold text-ink">{label}</p></Card>; }

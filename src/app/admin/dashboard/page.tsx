@@ -3,16 +3,18 @@ import { ArrowRight, CalendarClock, ClipboardCheck, FileBarChart, IdCard, QrCode
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EventCard } from "@/components/event/event-card";
-import { InlineNotice } from "@/components/ui/feedback";
+import { DataLoadNotice, InlineNotice } from "@/components/ui/feedback";
 import { getSessionUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/server-data";
+import { loadWithFallback } from "@/lib/data-loading";
 import { EVENT_SCOPE_NAME, PRODUCT_NAME } from "@/lib/branding";
 import { hasPermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 const statusLabels: Record<string, string> = { DRAFT: "กำลังเตรียมข้อมูล", PUBLISHED: "พร้อมรับผู้เข้าร่วม", ACTIVE: "กำลังดำเนินงาน", COMPLETED: "ปิดงานแล้ว", CANCELLED: "ยกเลิก" };
-
+type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
+const emptyDashboardData: DashboardData = { eventCount: 0, upcomingCount: 0, attendeeCount: 0, checkedInCount: 0, checkinsToday: 0, latestEvents: [] };
 function Metric({ label, value, detail, icon: Icon }: { label: string; value: string | number; detail: string; icon: typeof UsersRound }) {
   return <div className="rounded-md border border-line bg-white px-4 py-4 shadow-card sm:px-5"><div className="flex items-start justify-between gap-3"><p className="max-w-[12rem] text-sm font-semibold leading-5 text-muted">{label}</p><Icon size={18} strokeWidth={1.8} className="text-link" aria-hidden="true" /></div><p className="metric-value mt-4">{value}</p><p className="mt-2 text-xs text-muted">{detail}</p></div>;
 }
@@ -20,7 +22,7 @@ function Metric({ label, value, detail, icon: Icon }: { label: string; value: st
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) return null;
-  const data = await getDashboardData(user);
+  const { data, hasError } = await loadWithFallback(() => getDashboardData(user), emptyDashboardData, "DashboardPage.getDashboardData");
   const project = data.latestEvents[0];
   const canConfigure = hasPermission(user.role, "events:write");
   const projectHref = project ? `/admin/events/${project.id}` : canConfigure ? "/admin/events/new" : "/admin/events";
@@ -42,9 +44,11 @@ export default async function DashboardPage() {
     <section className="hero-mesh overflow-hidden rounded-md border border-line bg-white text-ink shadow-soft">
       <div className="grid lg:grid-cols-[1.45fr_.55fr]">
         <div className="relative px-6 py-8 sm:px-10 sm:py-12"><div className="relative"><p className="mono text-[11px] font-semibold uppercase tracking-[0.22em] text-muted">Operations Desk / {EVENT_SCOPE_NAME}</p><h1 className="mt-4 text-4xl font-semibold leading-none tracking-[-0.06em] sm:text-6xl">{PRODUCT_NAME}</h1><p className="mt-5 max-w-2xl text-sm leading-7 text-muted">ศูนย์กลางสำหรับทีมลงทะเบียน ออกบัตร และควบคุมการ Check-in ข้อมูลทุกจุดอ้างอิงจาก Event เดียวกัน</p><div className="mt-6 flex flex-wrap gap-3">{canScan ? <Button href="/scanner" variant="primary" className="rounded-full"><QrCode size={17} />เปิดจุด Check-in</Button> : null}<Button href={projectHref} variant="secondary" className="rounded-full"><Settings2 size={17} />{project ? "เปิด Event Workspace" : canConfigure ? "ตั้งค่ากิจกรรม" : "ดูกิจกรรม"}</Button></div></div></div>
-        <div className="border-t border-line bg-paper p-6 lg:border-l lg:border-t-0 lg:p-7"><div className="flex items-center justify-between"><span className="mono text-[10px] uppercase tracking-[0.18em] text-muted">สถานะระบบ</span><span className="h-2 w-2 rounded-full bg-signal" aria-hidden="true" /></div><p className="mt-6 text-2xl font-semibold leading-tight">{project ? "พร้อมปฏิบัติงาน" : "รอตั้งค่ากิจกรรม"}</p><p className="mt-2 text-sm leading-6 text-muted">{project ? statusLabels[project.status] ?? project.status : "เพิ่มวันเวลา สถานที่ และช่วงเปิด Check-in ก่อนเริ่มใช้งาน"}</p><dl className="mt-6 space-y-3 border-t border-line pt-4 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted">ขอบเขต</dt><dd className="font-semibold">{EVENT_SCOPE_NAME}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted">ผู้ใช้งาน</dt><dd className="font-semibold">{user.name}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted">สิทธิ์</dt><dd className="font-semibold">{user.role.replaceAll("_", " ")}</dd></div></dl></div>
+        <div className="border-t border-line bg-paper p-6 lg:border-l lg:border-t-0 lg:p-7"><div className="flex items-center justify-between"><span className="mono text-[10px] uppercase tracking-[0.18em] text-muted">สถานะระบบ</span><span className="h-2 w-2 rounded-full bg-signal" aria-hidden="true" /></div><p className="mt-6 text-2xl font-semibold leading-tight">{project ? "พร้อมปฏิบัติงาน" : "รอตั้งค่ากิจกรรม"}</p><p className="mt-2 text-sm leading-6 text-muted">{project ? statusLabels[project.status] ?? project.status : "เพิ่มวันเวลา สถานที่ และช่วงเปิด Check-in ก่อนเริ่มใช้งาน"}</p><dl className="mt-6 space-y-3 border-t border-line pt-4 text-sm"></dl></div>
       </div>
     </section>
+
+    {hasError ? <div className="mt-6"><DataLoadNotice resource="ข้อมูลภาพรวม" /></div> : null}
 
     <section className="mt-6" aria-labelledby="overview-heading"><div className="mb-3 flex items-end justify-between gap-4"><div><p className="eyebrow">ภาพรวม</p><h2 id="overview-heading" className="mt-2 text-xl font-semibold tracking-[-0.025em]">ตัวเลขที่ต้องรู้วันนี้</h2></div><span className="mono hidden text-[10px] uppercase tracking-[0.16em] text-muted sm:block">Asia / Bangkok</span></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric label="กิจกรรมทั้งหมด" value={data.eventCount.toLocaleString("th-TH")} detail="Event ในขอบเขตของคุณ" icon={CalendarClock} /><Metric label="กำลังจะถึง" value={data.upcomingCount.toLocaleString("th-TH")} detail="กิจกรรมที่ยังไม่เริ่ม" icon={CalendarClock} /><Metric label="ผู้เข้าร่วม" value={data.attendeeCount.toLocaleString("th-TH")} detail="รายชื่อในกิจกรรม" icon={UsersRound} /><Metric label="เข้างานวันนี้" value={data.checkinsToday.toLocaleString("th-TH")} detail="ผลสำเร็จเท่านั้น" icon={UserRoundCheck} /><Metric label="Check-in rate" value={`${checkinRate}%`} detail={`ยังไม่เข้า ${pending.toLocaleString("th-TH")} คน`} icon={ClipboardCheck} /></div></section>
 

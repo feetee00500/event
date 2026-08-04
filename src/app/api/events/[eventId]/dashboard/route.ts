@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthenticatedUser } from "@/lib/guards";
+import { requireAuthenticatedUser, requireEvent } from "@/lib/guards";
 import { apiError } from "@/lib/http";
 import { getReportData } from "@/lib/server-data";
 
@@ -9,6 +9,7 @@ export async function GET(_request: Request, { params }: Context) {
   try {
     const user = await requireAuthenticatedUser();
     const { eventId } = await params;
+    await requireEvent(user, eventId, "reports:read");
     const report = await getReportData(user, eventId);
     if (!report) return NextResponse.json({ error: "ไม่พบ Event" }, { status: 404 });
     return NextResponse.json({ report });

@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => ({ prisma: {
   ticket: { groupBy: mocks.ticketGroupBy },
   $queryRaw: mocks.queryRaw,
 } }));
+vi.mock("@/lib/guards", () => ({ requireEvent: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ isDevelopmentAuthBypassEnabled: vi.fn(() => false) }));
 
 beforeEach(() => {
@@ -23,7 +24,7 @@ beforeEach(() => {
 
 describe("report accuracy", () => {
   it("counts unique checked-in attendees separately from REENTRY scans", async () => {
-    const report = await getReportData({ id: "admin", name: "Admin", email: "admin@test.local", role: "SUPER_ADMIN", isActive: true }, "event-a", true);
+    const report = await getReportData({ id: "admin", name: "Admin", email: "admin@test.local", role: "SUPER_ADMIN", isActive: true }, "event-a");
     expect(report).toMatchObject({ registered: 10, checkedIn: 7, successfulScans: 9, duplicateScans: 2, invalidScans: 1, noShow: 2 });
     expect(report?.byHour).toEqual([{ hour: "00", count: 9 }]);
     expect(report?.gates).toEqual([{ id: "gate-a", name: "Gate A", count: 9 }]);

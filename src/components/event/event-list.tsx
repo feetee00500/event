@@ -7,7 +7,7 @@ import type { EventListItem } from "@/lib/server-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EmptyState, InlineNotice } from "@/components/ui/feedback";
+import { DataLoadNotice, EmptyState, InlineNotice } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { EventCard } from "@/components/event/event-card";
@@ -19,7 +19,7 @@ const statusLabels: Record<string, string> = { ALL: "ทุกสถานะ", 
 type DateFilter = "ALL" | "UPCOMING" | "PAST";
 type SortMode = "DATE" | "NAME" | "CHECKIN";
 
-export function EventList({ initialEvents, canWrite, canDelete = false }: { initialEvents: EventListItem[]; canWrite: boolean; canDelete?: boolean }) {
+export function EventList({ initialEvents, canWrite, canDelete = false, loadError = false }: { initialEvents: EventListItem[]; canWrite: boolean; canDelete?: boolean; loadError?: boolean }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [dateFilter, setDateFilter] = useState<DateFilter>("ALL");
@@ -51,6 +51,7 @@ export function EventList({ initialEvents, canWrite, canDelete = false }: { init
   }
 
   return <>
+    {loadError ? <div className="mb-4"><DataLoadNotice resource="กิจกรรม" /></div> : null}
     {error ? <div className="mb-4"><InlineNotice tone="error">{error}</InlineNotice></div> : null}
     <Card>
       <CardContent>

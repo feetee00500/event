@@ -7,7 +7,6 @@ import { ClipboardCheck, LayoutDashboard, LogOut, Menu, RadioTower, Settings2, U
 import { useState } from "react";
 import { hasPermission, roleLabel } from "@/lib/permissions";
 import type { CurrentUser } from "@/lib/auth";
-import { EVENT_SCOPE_NAME, PRODUCT_NAME } from "@/lib/branding";
 import { MobileNavigation } from "@/components/app-shell/mobile-navigation";
 
 const baseNav = [
@@ -35,8 +34,7 @@ export function AdminShell({ user, children }: { user: CurrentUser; children: Re
               <button type="button" className="focus-ring touch-target -mr-2 rounded-sm text-muted lg:hidden" aria-label="ปิดเมนู" onClick={closeMobile}><X size={18} /></button>
             </div>
             <Link href="/admin/dashboard" className="focus-ring block min-w-0 rounded-sm" onClick={closeMobile}>
-              <span className="block break-words text-3xl font-semibold tracking-[-0.07em]">{PRODUCT_NAME}</span>
-              <span className="mono mt-2 block break-words text-[11px] uppercase tracking-[0.16em] text-muted">{EVENT_SCOPE_NAME}</span>
+              <span className="block break-words text-3xl font-semibold tracking-[-0.07em]">EVENT</span>
             </Link>
           </div>
 
@@ -61,8 +59,7 @@ export function AdminShell({ user, children }: { user: CurrentUser; children: Re
       <div className="min-w-0 lg:pl-72">
         <header className="sticky top-0 z-[90] flex min-h-16 items-center justify-between gap-3 border-b border-line bg-white px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] sm:px-6">
           <button type="button" className="focus-ring touch-target shrink-0 rounded-sm text-muted lg:hidden" aria-label="เปิดเมนู" onClick={() => setMobileOpen(true)}><Menu size={21} /></button>
-          <div className="hidden min-w-0 items-center gap-3 lg:flex"><RadioTower size={17} className="shrink-0 text-link" aria-hidden="true" /><div className="min-w-0"><p className="mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted">{PRODUCT_NAME}</p><p className="truncate text-sm font-medium">ระบบควบคุมการลงทะเบียนและเข้างาน</p></div></div>
-          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3"><span className="hidden min-w-0 text-right sm:block"><span className="block truncate text-sm font-medium">{user.name}</span><span className="block truncate text-xs text-muted">{roleLabel(user.role)}</span></span><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-medium text-white" aria-hidden="true">{user.name.slice(0, 1).toUpperCase()}</span></div>
+          <div className="hidden min-w-0 items-center gap-3 lg:flex"><RadioTower size={17} className="shrink-0 text-link" aria-hidden="true" /><div className="min-w-0"><p className="mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted">EVENT</p><p className="truncate text-sm font-medium">ระบบควบคุมการลงทะเบียนและเข้างาน</p></div></div>
         </header>
         <main id="main-content" className="mx-auto min-w-0 max-w-[1400px] px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pb-8 sm:pt-8">{children}</main>
       </div>

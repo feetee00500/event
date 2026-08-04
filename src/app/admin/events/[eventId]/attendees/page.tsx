@@ -4,7 +4,7 @@ import { getAttendees, getEvent } from "@/lib/server-data";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { EventTabs } from "@/components/event/event-tabs";
 import { AttendeeManager, type AttendeeRow } from "@/components/attendee/attendee-manager";
-import { InlineNotice } from "@/components/ui/feedback";
+import { DataLoadNotice, InlineNotice } from "@/components/ui/feedback";
 
 type Props = { params: Promise<{ eventId: string }> };
 
@@ -17,9 +17,9 @@ export default async function AttendeesPage({ params }: Props) {
   try {
     const [event, attendees] = await Promise.all([
       getEvent(user, eventId),
-      getAttendees(user, eventId, true),
+      getAttendees(user, eventId),
     ]);
-    if (!event || !attendees) return <InlineNotice tone="error">ไม่พบ Event</InlineNotice>;
+    if (!event) return <><PageHeader eyebrow="Event" title="ผู้เข้าร่วมงาน" description="เพิ่ม แก้ไข ลบรายชื่อ และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={false} /><div className="mt-6"><InlineNotice tone="error">ไม่พบ Event</InlineNotice></div></>;
     const rows: AttendeeRow[] = attendees.map((attendee) => ({
       id: attendee.id,
       title: attendee.title,
@@ -34,7 +34,5 @@ export default async function AttendeesPage({ params }: Props) {
       ticket: attendee.tickets[0] ? { id: attendee.tickets[0].id, ticketNumber: attendee.tickets[0].ticketNumber, ticketType: attendee.tickets[0].ticketType, status: attendee.tickets[0].status, checkedInAt: attendee.tickets[0].checkedInAt?.toISOString() ?? null } : null,
     }));
     return <><PageHeader eyebrow={event.name} title="ผู้เข้าร่วม" description="เพิ่ม แก้ไข ลบรายชื่อ ออก QR และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={canManageEvent(user.role, event.assignments[0]?.role)} /><div className="mt-6"><AttendeeManager eventId={eventId} initialAttendees={rows} canWrite={canManageEvent(user.role, event.assignments[0]?.role)} /></div></>;
-  } catch {
-    return <InlineNotice tone="error">ไม่สามารถโหลดรายชื่อผู้เข้าร่วมได้</InlineNotice>;
-  }
+  } catch (error) { console.error("[AttendeesPage] data load failed", error); return <><PageHeader eyebrow="Event" title="ผู้เข้าร่วมงาน" description="เพิ่ม แก้ไข ลบรายชื่อ และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={false} /><div className="mt-6"><DataLoadNotice resource="รายชื่อผู้เข้าร่วม" /></div></>; }
 }

@@ -10,6 +10,10 @@ export function InlineNotice({ tone, children }: { tone: "success" | "error" | "
   return <div role={tone === "error" ? "alert" : "status"} className={`flex items-start gap-2 rounded-sm border px-3.5 py-3 text-sm ${config.className}`}><config.Icon size={18} className="mt-0.5 shrink-0" aria-hidden="true" /><div>{children}</div></div>;
 }
 
+export function DataLoadNotice({ resource }: { resource: string }) {
+  return <InlineNotice tone="error">ไม่สามารถโหลด{resource}ได้ในขณะนี้ ระบบยังไม่พร้อมเชื่อมต่อฐานข้อมูล กรุณาลองใหม่อีกครั้ง</InlineNotice>;
+}
+
 export function Skeleton({ className = "" }: { className?: string }) {
   return <div aria-hidden="true" className={`shimmer animate-shimmer rounded-sm ${className}`} />;
 }

@@ -2,7 +2,8 @@ import type { EventAssignmentRole, EventStatus, TicketStatus } from "@prisma/cli
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { eventScope } from "@/lib/permissions";
-import { isDevelopmentAuthBypassEnabled, type CurrentUser } from "@/lib/auth";
+import { requireEvent } from "@/lib/guards";
+import { type CurrentUser } from "@/lib/auth";
 import { bangkokDayBounds } from "@/lib/timezone";
 
 export type EventListItem = {
@@ -39,9 +40,6 @@ export async function getEvent(user: CurrentUser, eventId: string) {
 }
 
 export async function getDashboardData(user: CurrentUser) {
-  if (isDevelopmentAuthBypassEnabled() && !process.env.DATABASE_URL) {
-    return { eventCount: 0, upcomingCount: 0, attendeeCount: 0, checkedInCount: 0, checkinsToday: 0, latestEvents: [] };
-  }
   const scope = eventScope(user.id, user.role);
   const { start: todayStart, end: tomorrow } = bangkokDayBounds();
   const [eventCount, upcomingCount, attendeeCount, checkedInCount, checkinsToday, latestEvents] = await Promise.all([
@@ -55,23 +53,18 @@ export async function getDashboardData(user: CurrentUser) {
   return { eventCount, upcomingCount, attendeeCount, checkedInCount, checkinsToday, latestEvents: latestEvents.map((event) => ({ id: event.id, name: event.name, venue: event.venue, imageUrl: event.imageUrl, startAt: event.startAt.toISOString(), endAt: event.endAt.toISOString(), status: event.status, registered: event._count.attendees, checkedIn: event._count.tickets })) };
 }
 
-async function hasEventAccess(user: CurrentUser, eventId: string): Promise<boolean> {
-  const event = await prisma.event.findFirst({ where: { id: eventId, ...eventScope(user.id, user.role) }, select: { id: true } });
-  return Boolean(event);
-}
-
-export async function getAttendees(user: CurrentUser, eventId: string, accessVerified = false) {
-  if (!accessVerified && !(await hasEventAccess(user, eventId))) return null;
+export async function getAttendees(user: CurrentUser, eventId: string) {
+  await requireEvent(user, eventId, "events:read");
   return prisma.attendee.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, ticketNumber: true, ticketType: true, status: true, issuedAt: true, checkedInAt: true } } } });
 }
 
-export async function getTickets(user: CurrentUser, eventId: string, accessVerified = false) {
-  if (!accessVerified && !(await hasEventAccess(user, eventId))) return null;
+export async function getTickets(user: CurrentUser, eventId: string) {
+  await requireEvent(user, eventId, "events:read");
   return prisma.ticket.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, include: { attendee: true } });
 }
 
-export async function getCheckins(user: CurrentUser, eventId: string, accessVerified = false) {
-  if (!accessVerified && !(await hasEventAccess(user, eventId))) return null;
+export async function getCheckins(user: CurrentUser, eventId: string) {
+  await requireEvent(user, eventId, "reports:read");
   return prisma.checkin.findMany({
     where: { eventId },
     orderBy: { scannedAt: "desc" },
@@ -88,8 +81,8 @@ export async function getCheckins(user: CurrentUser, eventId: string, accessVeri
   });
 }
 
-export async function getReportData(user: CurrentUser, eventId: string, accessVerified = false) {
-  if (!accessVerified && !(await hasEventAccess(user, eventId))) return null;
+export async function getReportData(user: CurrentUser, eventId: string) {
+  await requireEvent(user, eventId, "reports:read");
   const [registered, checkedIn, duplicateScans, invalidScans, cancelled, gates, byType, hourly] = await Promise.all([
     prisma.attendee.count({ where: { eventId } }),
     prisma.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
