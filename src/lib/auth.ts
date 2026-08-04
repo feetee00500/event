@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import type { UserRole } from "@prisma/client";
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { loginSchema } from "@/lib/validation";
 
@@ -30,7 +31,7 @@ export function isDevelopmentAuthBypassEnabled(): boolean {
   return process.env.NODE_ENV === "development" && process.env.DEV_AUTH_BYPASS !== "false";
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+async function resolveCurrentUser(): Promise<CurrentUser | null> {
   if (isDevelopmentAuthBypassEnabled()) {
     if (!process.env.DATABASE_URL) return developmentUser;
     try {
@@ -51,6 +52,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 }
+
+export const getCurrentUser = cache(resolveCurrentUser);
 
 export class AuthRequiredError extends Error { constructor(message = "กรุณาเข้าสู่ระบบ") { super(message); this.name = "AuthRequiredError"; } }
 export async function requireUser(): Promise<CurrentUser> { const user = await getCurrentUser(); if (!user) throw new AuthRequiredError(); return user; }

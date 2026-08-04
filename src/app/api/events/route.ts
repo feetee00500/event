@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { EventAssignmentRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/guards";
 import { apiError } from "@/lib/http";
@@ -47,7 +48,8 @@ export async function POST(request: Request) {
           createdById: user.id,
         },
       });
-      await tx.eventAssignment.create({ data: { eventId: created.id, userId: user.id, role: "EVENT_ADMIN" } });
+      const users = await tx.user.findMany({ where: { role: { not: "SUPER_ADMIN" }, isActive: true }, select: { id: true, role: true } });
+      if (users.length) await tx.eventAssignment.createMany({ data: users.map((assignedUser) => ({ eventId: created.id, userId: assignedUser.id, role: assignedUser.role as EventAssignmentRole })) });
       await tx.gate.create({ data: { eventId: created.id, name: "Main Gate", location: "จุดลงทะเบียนหลัก" } });
       await tx.auditLog.create({
         data: {

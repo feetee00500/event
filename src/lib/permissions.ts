@@ -12,7 +12,7 @@ export type Permission =
 
 const rolePermissions: Record<UserRole, readonly Permission[]> = {
   SUPER_ADMIN: ["events:read", "events:write", "attendees:write", "tickets:write", "checkin:write", "reports:read", "users:write", "audit:read"],
-  EVENT_ADMIN: ["events:read", "events:write", "attendees:write", "tickets:write", "reports:read"],
+  EVENT_ADMIN: ["events:read", "events:write", "attendees:write", "tickets:write", "checkin:write", "reports:read"],
   EVENT_STAFF: ["events:read", "checkin:write"],
   VIEWER: ["events:read", "reports:read"],
 };
@@ -23,11 +23,12 @@ export function hasPermission(role: UserRole, permission: Permission): boolean {
 
 export function canManageEvent(role: UserRole, assignment?: EventAssignmentRole | null): boolean {
   if (role === "SUPER_ADMIN") return true;
-  return assignment === "EVENT_ADMIN";
+  return role === "EVENT_ADMIN" && assignment === "EVENT_ADMIN";
 }
 
 export function canCheckIn(role: UserRole, assignment?: EventAssignmentRole | null): boolean {
   if (role === "SUPER_ADMIN") return true;
+  if (role !== "EVENT_ADMIN" && role !== "EVENT_STAFF") return false;
   return assignment === "EVENT_ADMIN" || assignment === "EVENT_STAFF";
 }
 

@@ -13,4 +13,15 @@ describe("role permissions", () => {
     expect(canManageEvent("SUPER_ADMIN")).toBe(true);
     expect(canCheckIn("SUPER_ADMIN")).toBe(true);
   });
+
+  it("allows assigned event admins to scan and manage", () => {
+    expect(hasPermission("EVENT_ADMIN", "checkin:write")).toBe(true);
+    expect(canCheckIn("EVENT_ADMIN", "EVENT_ADMIN")).toBe(true);
+    expect(canManageEvent("EVENT_ADMIN", "EVENT_ADMIN")).toBe(true);
+  });
+
+  it("does not elevate a viewer through an inconsistent assignment", () => {
+    expect(canCheckIn("VIEWER", "EVENT_STAFF")).toBe(false);
+    expect(canManageEvent("VIEWER", "EVENT_ADMIN")).toBe(false);
+  });
 });

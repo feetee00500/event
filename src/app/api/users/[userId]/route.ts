@@ -14,8 +14,20 @@ export async function PATCH(request: Request, { params }: Context) {
     const { userId } = await params;
     if (userId === currentUser.id && (await request.clone().json().catch(() => ({})) as { isActive?: boolean }).isActive === false) return NextResponse.json({ error: "ไม่สามารถปิดใช้งานบัญชีของตนเอง" }, { status: 422 });
     const data = updateSchema.parse(await request.json());
-    const user = await prisma.user.update({ where: { id: userId }, data });
-    await prisma.auditLog.create({ data: { userId: currentUser.id, action: "USER_UPDATED", entityType: "User", entityId: userId, newValue: { role: user.role, isActive: user.isActive } } });
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({ where: { id: userId }, data });
+      if (data.role === "SUPER_ADMIN") {
+        await tx.eventAssignment.deleteMany({ where: { userId } });
+      } else if (data.role) {
+        const assignments = await tx.eventAssignment.updateMany({ where: { userId }, data: { role: data.role } });
+        if (assignments.count === 0) {
+          const event = await tx.event.findFirst({ select: { id: true } });
+          if (event) await tx.eventAssignment.create({ data: { eventId: event.id, userId, role: data.role } });
+        }
+      }
+      await tx.auditLog.create({ data: { userId: currentUser.id, action: "USER_UPDATED", entityType: "User", entityId: userId, newValue: { role: updated.role, isActive: updated.isActive } } });
+      return updated;
+    });
     return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive } });
   } catch (error) {
     return apiError(error);

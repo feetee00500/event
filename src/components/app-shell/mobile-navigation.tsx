@@ -11,8 +11,14 @@ const items = [
   { href: "/admin/users", label: "ผู้ใช้งาน", icon: UsersRound },
 ];
 
-export function MobileNavigation({ showUsers }: { showUsers: boolean }) {
+export function MobileNavigation({ showUsers, showScanner }: { showUsers: boolean; showScanner: boolean }) {
   const pathname = usePathname();
-  const visibleItems = items.filter((item) => item.href !== "/admin/users" || showUsers);
-  return <nav className={`fixed inset-x-3 bottom-3 z-[150] grid ${showUsers ? "grid-cols-4" : "grid-cols-3"} rounded-xl border border-line bg-white/95 p-1.5 shadow-[0_12px_34px_rgba(0,39,86,.18)] backdrop-blur lg:hidden`} aria-label="เมนูหลักบนมือถือ">{visibleItems.map((item) => { const Icon = item.icon; const active = pathname === item.href || pathname.startsWith(`${item.href}/`); return <Link key={item.href} href={item.href} className={`focus-ring flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-semibold ${active ? "bg-[#eaf6f3] text-primary" : "text-muted"}`} aria-current={active ? "page" : undefined}><Icon size={18} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />{item.label}</Link>; })}</nav>;
+  const visibleItems = items.filter((item) => (item.href !== "/admin/users" || showUsers) && (item.href !== "/scanner" || showScanner));
+  const navClassName = "fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[150] grid rounded-md border border-line bg-white p-1.5 shadow-soft lg:hidden";
+  return <nav className={navClassName} style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }} aria-label="เมนูหลักบนมือถือ">{visibleItems.map((item) => {
+    const Icon = item.icon;
+    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    const itemClassName = ["focus-ring flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-sm px-1 text-[10px] font-medium transition", active ? "bg-ink text-white" : "text-muted hover:bg-paper hover:text-ink"].join(" ");
+    return <Link key={item.href} href={item.href} className={itemClassName} aria-current={active ? "page" : undefined}><Icon size={18} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" /><span className="max-w-full truncate">{item.label}</span></Link>;
+  })}</nav>;
 }

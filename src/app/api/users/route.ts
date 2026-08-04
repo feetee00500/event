@@ -22,8 +22,15 @@ export async function POST(request: Request) {
     if (currentUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "คุณไม่มีสิทธิ์สร้างผู้ใช้งาน" }, { status: 403 });
     const data = userSchema.parse(await request.json());
     const passwordHash = await bcrypt.hash(data.password, 12);
-    const user = await prisma.user.create({ data: { name: data.name, email: data.email.toLowerCase(), passwordHash, role: data.role, isActive: data.isActive } });
-    await prisma.auditLog.create({ data: { userId: currentUser.id, action: "USER_CREATED", entityType: "User", entityId: user.id, newValue: { role: user.role, email: user.email } } });
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: { name: data.name, email: data.email.toLowerCase(), passwordHash, role: data.role, isActive: data.isActive } });
+      if (created.role !== "SUPER_ADMIN") {
+        const event = await tx.event.findFirst({ select: { id: true } });
+        if (event) await tx.eventAssignment.create({ data: { eventId: event.id, userId: created.id, role: created.role } });
+      }
+      await tx.auditLog.create({ data: { userId: currentUser.id, action: "USER_CREATED", entityType: "User", entityId: created.id, newValue: { role: created.role, email: created.email } } });
+      return created;
+    });
     return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, isActive: user.isActive } }, { status: 201 });
   } catch (error) {
     return apiError(error);

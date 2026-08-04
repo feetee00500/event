@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const user = await requireAuthenticatedUser();
     const meta = getRequestMeta(request);
     const rate = checkinRateLimit(`manual:${user.id}:${meta.ipAddress ?? "unknown"}`);
-    if (!rate.allowed) return NextResponse.json({ error: "มีการตรวจสอบถี่เกินไป กรุณารอสักครู่" }, { status: 429 });
+    if (!rate.allowed) return NextResponse.json({ error: "มีการตรวจสอบถี่เกินไป กรุณารอสักครู่" }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
     const data = manualCheckinSchema.parse(await request.json());
     await requireEvent(user, data.eventId, "checkin:write");
     const result = await processManualCheckin({ ...data, userId: user.id, ipAddress: meta.ipAddress, userAgent: meta.userAgent });

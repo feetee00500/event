@@ -12,17 +12,17 @@ function failureMessage(result: CheckinResult): string { return { INVALID_TOKEN:
 function failure(result: CheckinResult, extra: Partial<Extract<CheckinResponse, { success: false }>> = {}): CheckinResponse { return { success: false, status: result, message: failureMessage(result), ...extra }; }
 
 export async function processCheckin(input: CheckinInput): Promise<CheckinResponse> {
-  const tokenHash = hashQrToken(input.token);
+  const tokenHash = input.ticketNumber ? undefined : hashQrToken(input.token);
   return prisma.$transaction(async (tx) => {
-    const event = await tx.event.findUnique({ where: { id: input.eventId } });
+    const event = await tx.event.findUnique({ where: { id: input.eventId }, select: { id: true, status: true, accessMode: true, checkinOpenAt: true, checkinCloseAt: true, gates: { where: { id: input.gateId, isActive: true }, take: 1, select: { id: true, name: true } } } });
     if (!event) return failure("INVALID_TOKEN");
     const now = new Date();
-    const gate = await tx.gate.findUnique({ where: { id: input.gateId } });
-    if (!gate || gate.eventId !== event.id || !gate.isActive) return failure("EVENT_MISMATCH");
+    const gate = event.gates[0];
+    if (!gate) return failure("EVENT_MISMATCH");
     if (event.status === "CANCELLED" || event.status === "COMPLETED") return failure("TOO_LATE");
     if (event.status === "DRAFT") return failure("TOO_EARLY");
 
-    const ticket = await tx.ticket.findUnique({ where: input.ticketNumber ? { ticketNumber: input.ticketNumber } : { qrTokenHash: tokenHash }, include: { attendee: true } });
+    const ticket = await tx.ticket.findUnique({ where: input.ticketNumber ? { ticketNumber: input.ticketNumber } : { qrTokenHash: tokenHash }, select: { id: true, eventId: true, attendeeId: true, ticketNumber: true, ticketType: true, status: true, expiresAt: true, attendee: { select: { id: true, firstName: true, lastName: true } } } });
     const meta: Prisma.InputJsonObject = { source: input.ticketNumber ? "manual" : "qr", deviceId: input.deviceId ?? "" };
     if (!ticket) {
       await tx.checkin.create({ data: { eventId: event.id, gateId: gate.id, scannedById: input.userId, deviceId: input.deviceId, result: "INVALID_TOKEN", ipAddress: input.ipAddress, userAgent: input.userAgent, metadata: meta } });
@@ -48,17 +48,17 @@ export async function processCheckin(input: CheckinInput): Promise<CheckinRespon
       return failure("CANCELLED");
     }
     if (ticket.status === "CHECKED_IN" && event.accessMode !== "REENTRY") {
-      const firstCheckin = await tx.checkin.findFirst({ where: { ticketId: ticket.id, result: "SUCCESS" }, orderBy: { scannedAt: "asc" }, include: { gate: true } });
+      const firstCheckin = await tx.checkin.findFirst({ where: { ticketId: ticket.id, result: "SUCCESS" }, orderBy: { scannedAt: "asc" }, select: { scannedAt: true, gate: { select: { name: true } } } });
       await tx.checkin.create({ data: { eventId: event.id, ticketId: ticket.id, gateId: gate.id, scannedById: input.userId, deviceId: input.deviceId, result: "ALREADY_CHECKED_IN", ipAddress: input.ipAddress, userAgent: input.userAgent, metadata: meta } });
       return failure("ALREADY_CHECKED_IN", { firstCheckedInAt: firstCheckin?.scannedAt.toISOString(), gateName: firstCheckin?.gate?.name });
     }
     const checkedInAt = now;
     const updated = await tx.ticket.updateMany({ where: { id: ticket.id, status: event.accessMode === "REENTRY" ? { in: ["ACTIVE", "CHECKED_IN"] } : "ACTIVE" }, data: { status: "CHECKED_IN", checkedInAt } });
     if (updated.count !== 1) {
-      const latest = await tx.ticket.findUnique({ where: { id: ticket.id } });
+      const latest = await tx.ticket.findUnique({ where: { id: ticket.id }, select: { status: true } });
       if (latest?.status === "CANCELLED") return failure("CANCELLED");
       if (latest?.status === "EXPIRED") return failure("EXPIRED");
-      const firstCheckin = await tx.checkin.findFirst({ where: { ticketId: ticket.id, result: "SUCCESS" }, orderBy: { scannedAt: "asc" }, include: { gate: true } });
+      const firstCheckin = await tx.checkin.findFirst({ where: { ticketId: ticket.id, result: "SUCCESS" }, orderBy: { scannedAt: "asc" }, select: { scannedAt: true, gate: { select: { name: true } } } });
       await tx.checkin.create({ data: { eventId: event.id, ticketId: ticket.id, gateId: gate.id, scannedById: input.userId, deviceId: input.deviceId, result: "ALREADY_CHECKED_IN", ipAddress: input.ipAddress, userAgent: input.userAgent, metadata: meta } });
       return failure("ALREADY_CHECKED_IN", { firstCheckedInAt: firstCheckin?.scannedAt.toISOString(), gateName: firstCheckin?.gate?.name });
     }

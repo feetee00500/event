@@ -142,6 +142,7 @@ model Attendee {
   tickets Ticket[]
 
   @@index([eventId, createdAt])
+  @@index([eventId, status])
   @@index([email])
   @@index([referenceCode])
   @@index([status])
@@ -207,6 +208,7 @@ model Checkin {
   scannedBy User?   @relation("CheckinScannedBy", fields: [scannedById], references: [id])
 
   @@index([eventId, scannedAt])
+  @@index([eventId, result, scannedAt])
   @@index([ticketId, result])
   @@index([gateId])
   @@index([scannedById])

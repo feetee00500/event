@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS "Attendee_eventId_status_idx" ON "Attendee"("eventId", "status");
+CREATE INDEX IF NOT EXISTS "Checkin_eventId_result_scannedAt_idx" ON "Checkin"("eventId", "result", "scannedAt");
