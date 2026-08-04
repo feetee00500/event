@@ -53,14 +53,23 @@ export async function getDashboardData(user: CurrentUser) {
   return { eventCount, upcomingCount, attendeeCount, checkedInCount, checkinsToday, latestEvents: latestEvents.map((event) => ({ id: event.id, name: event.name, venue: event.venue, imageUrl: event.imageUrl, startAt: event.startAt.toISOString(), endAt: event.endAt.toISOString(), status: event.status, registered: event._count.attendees, checkedIn: event._count.tickets })) };
 }
 
+export const MAX_LIST_ROWS = 1_000;
+
+type ListResult<T> = { rows: T[]; truncated: boolean };
+
+async function withBound<T>(fetch: (take: number) => Promise<T[]>): Promise<ListResult<T>> {
+  const rows = await fetch(MAX_LIST_ROWS + 1);
+  return rows.length > MAX_LIST_ROWS ? { rows: rows.slice(0, MAX_LIST_ROWS), truncated: true } : { rows, truncated: false };
+}
+
 export async function getAttendees(user: CurrentUser, eventId: string) {
   await requireEvent(user, eventId, "events:read");
-  return prisma.attendee.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, ticketNumber: true, ticketType: true, status: true, issuedAt: true, checkedInAt: true } } } });
+  return withBound((take) => prisma.attendee.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, take, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, ticketNumber: true, ticketType: true, status: true, issuedAt: true, checkedInAt: true } } } }));
 }
 
 export async function getTickets(user: CurrentUser, eventId: string) {
   await requireEvent(user, eventId, "events:read");
-  return prisma.ticket.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, include: { attendee: true } });
+  return withBound((take) => prisma.ticket.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, take, include: { attendee: true } }));
 }
 
 export async function getCheckins(user: CurrentUser, eventId: string) {

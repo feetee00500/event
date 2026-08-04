@@ -31,6 +31,7 @@ export async function POST(request: Request, { params }: Context) {
     const rows = XLSX.utils.sheet_to_json<InputRow>(sheet, { defval: "" });
     if (rows.length > MAX_IMPORT_ROWS) return NextResponse.json({ error: `นำเข้าได้ไม่เกิน ${MAX_IMPORT_ROWS} รายการต่อครั้ง` }, { status: 422 });
     const errors: Array<{ row: number; message: string }> = [];
+    const importedAttendeeIds: string[] = [];
     let imported = 0;
     for (let offset = 0; offset < rows.length; offset += IMPORT_CONCURRENCY) {
       const batch = rows.slice(offset, offset + IMPORT_CONCURRENCY);
@@ -39,19 +40,26 @@ export async function POST(request: Request, { params }: Context) {
         const parsed = attendeeSchema.safeParse({ title: value(row, "title", "คำนำหน้า"), firstName: value(row, "firstname", "first_name", "ชื่อ"), lastName: value(row, "lastname", "last_name", "นามสกุล"), email: value(row, "email", "อีเมล"), phone: value(row, "phone", "เบอร์โทร"), company: value(row, "company", "บริษัท"), referenceCode: value(row, "referencecode", "reference_code", "เลขอ้างอิง"), ticketType: value(row, "tickettype", "ticket_type", "ประเภทบัตร") || "General", note: value(row, "note", "หมายเหตุ") });
         if (!parsed.success) return { row: index + 2, error: Object.values(parsed.error.flatten().fieldErrors).flat().join(", ") || "ข้อมูลไม่ครบ" };
         try {
-          await prisma.$transaction(async (tx) => {
+          const attendeeId = await prisma.$transaction(async (tx) => {
             const attendee = await tx.attendee.create({ data: { eventId, title: parsed.data.title || null, firstName: parsed.data.firstName, lastName: parsed.data.lastName, email: parsed.data.email || null, phone: parsed.data.phone || null, company: parsed.data.company || null, referenceCode: parsed.data.referenceCode || null, note: parsed.data.note || null } });
-            await issueTicket(tx, { eventId, attendeeId: attendee.id, ticketType: parsed.data.ticketType });
+            await issueTicket(tx, { eventId, attendeeId: attendee.id, ticketType: parsed.data.ticketType, updateAttendeeStatus: false });
+            return attendee.id;
           });
-          return { row: index + 2 };
+          return { row: index + 2, attendeeId };
         } catch {
           return { row: index + 2, error: "ไม่สามารถบันทึกข้อมูลแถวนี้ได้ อาจมีเลขอ้างอิงซ้ำ" };
         }
       }));
       for (const result of results) {
         if (result.error) errors.push({ row: result.row, message: result.error });
-        else imported += 1;
+        else {
+          imported += 1;
+          importedAttendeeIds.push(result.attendeeId);
+        }
       }
+    }
+    if (importedAttendeeIds.length) {
+      await prisma.attendee.updateMany({ where: { id: { in: importedAttendeeIds } }, data: { status: "QR_GENERATED" } });
     }
     await prisma.auditLog.create({ data: { userId: user.id, eventId, action: "ATTENDEES_IMPORTED", entityType: "Attendee", newValue: { imported, rejected: errors.length } } });
     return NextResponse.json({ imported, rejected: errors.length, errors });

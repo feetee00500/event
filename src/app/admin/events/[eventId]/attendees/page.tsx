@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { canManageEvent } from "@/lib/permissions";
-import { getAttendees, getEvent } from "@/lib/server-data";
+import { getAttendees, getEvent, MAX_LIST_ROWS } from "@/lib/server-data";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { EventTabs } from "@/components/event/event-tabs";
 import { AttendeeManager, type AttendeeRow } from "@/components/attendee/attendee-manager";
@@ -15,10 +15,11 @@ export default async function AttendeesPage({ params }: Props) {
   if (!user) return null;
   const { eventId } = await params;
   try {
-    const [event, attendees] = await Promise.all([
+    const [event, result] = await Promise.all([
       getEvent(user, eventId),
       getAttendees(user, eventId),
     ]);
+    const attendees = result.rows;
     if (!event) return <><PageHeader eyebrow="Event" title="ผู้เข้าร่วมงาน" description="เพิ่ม แก้ไข ลบรายชื่อ และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={false} /><div className="mt-6"><InlineNotice tone="error">ไม่พบ Event</InlineNotice></div></>;
     const rows: AttendeeRow[] = attendees.map((attendee) => ({
       id: attendee.id,
@@ -33,6 +34,6 @@ export default async function AttendeesPage({ params }: Props) {
       status: attendee.status,
       ticket: attendee.tickets[0] ? { id: attendee.tickets[0].id, ticketNumber: attendee.tickets[0].ticketNumber, ticketType: attendee.tickets[0].ticketType, status: attendee.tickets[0].status, checkedInAt: attendee.tickets[0].checkedInAt?.toISOString() ?? null } : null,
     }));
-    return <><PageHeader eyebrow={event.name} title="ผู้เข้าร่วม" description="เพิ่ม แก้ไข ลบรายชื่อ ออก QR และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={canManageEvent(user.role, event.assignments[0]?.role)} /><div className="mt-6"><AttendeeManager eventId={eventId} initialAttendees={rows} canWrite={canManageEvent(user.role, event.assignments[0]?.role)} /></div></>;
+    return <><PageHeader eyebrow={event.name} title="ผู้เข้าร่วม" description="เพิ่ม แก้ไข ลบรายชื่อ ออก QR และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={canManageEvent(user.role, event.assignments[0]?.role)} />{result.truncated ? <div className="mt-6"><InlineNotice tone="info">แสดงเฉพาะ {MAX_LIST_ROWS} รายการล่าสุด — ใช้ช่องค้นหาหรือ Export เพื่อดูข้อมูลทั้งหมด</InlineNotice></div> : null}<div className="mt-6"><AttendeeManager eventId={eventId} initialAttendees={rows} canWrite={canManageEvent(user.role, event.assignments[0]?.role)} /></div></>;
   } catch (error) { console.error("[AttendeesPage] data load failed", error); return <><PageHeader eyebrow="Event" title="ผู้เข้าร่วมงาน" description="เพิ่ม แก้ไข ลบรายชื่อ และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={false} /><div className="mt-6"><DataLoadNotice resource="รายชื่อผู้เข้าร่วม" /></div></>; }
 }

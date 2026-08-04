@@ -4,9 +4,6 @@
 
 This repository is the operational system for **Event TIRD QR Code Check-in**.
 
-- Product identity: **Event TIRD**
-- Current event scope: **IIRFA 2026 only**
-- The real event reference is [TIRD IIRFA](https://www.tird.insure/iirfa/). Use it as a content and visual reference when the requirement calls for it; do not copy unrelated site structure.
 - The event owner will create the real event, attendees, gates, tickets, and other records manually through the application.
 - Do not add fake, demo, seed, placeholder, or fabricated event records to Production.
 - Keep the product practical for an operations desk: clear status, fast scanning, short paths, and reliable feedback are more important than decorative UI.
@@ -41,14 +38,21 @@ There is no separate frontend server and backend server in this repository. UI p
 ### Important directories
 
 - **src/app/** — App Router pages, layouts, loading/error states, and API Route Handlers.
+- **src/app/(auth)/** — authentication pages (login).
+- **src/app/admin/** — desktop admin pages for event, user, attendee, ticket, gate, and report management.
+- **src/app/scanner/** — mobile check-in scanner pages (device flow).
+- **src/app/ticket/** — public QR ticket pass pages.
 - **src/app/api/** — server endpoints; validate input and authorize here.
 - **src/components/** — reusable UI and feature components.
-- **src/lib/** — authentication, Prisma access, validation, QR/check-in logic, permissions, and shared utilities.
+- **src/lib/** — authentication, Prisma access, validation, QR/check-in logic, permissions, rate limiting, and shared utilities.
+- **src/types/** — shared TypeScript declarations (e.g. NextAuth augmentation).
+- **src/test/** — test utilities and fixtures.
 - **prisma/schema.prisma** — database schema.
 - **prisma/migrations/** — committed migration history.
 - **prisma/seed.ts** — development-only user seed; no demo event data.
+- **.agents/skills/** — project-scoped agent skills.
 - **DESIGN.md** — the source of truth for the current visual direction and layout decisions.
-- **docs/** — deployment and operational documentation.
+- **docs/** — deployment and operational documentation; **docs/full-system-audit.md** is the full system audit report and **docs/vercel-deployment.md** is the GitHub + Vercel + Prisma Postgres runbook.
 
 ## 4. Design system and UI direction
 
@@ -147,6 +151,8 @@ Environment variable names are documented without values. Real values must exist
 - Do not use the seed to create demo events or fake attendees.
 - A previously exposed database credential must be rotated in Prisma/Vercel and replaced in every environment. Do not copy the old value into documentation or commits.
 - Never commit **.env**, **.env.***, **.vercel**, or generated credential files. Check **.gitignore** before adding environment tooling.
+- Admin list pages bound attendee/ticket reads through **MAX_LIST_ROWS** in **src/lib/server-data.ts** and show a truncation notice; do not remove or raise the bound without a pagination UI.
+- Import endpoints batch attendee status updates instead of updating per row; keep per-row transactions only for attendee + ticket creation.
 
 ### Safe database workflow
 
@@ -179,7 +185,7 @@ Use the package scripts already present in **package.json**; do not invent a sec
 - Read the relevant existing files and **DESIGN.md** before editing.
 - Preserve unrelated user changes and untracked files. Inspect **git status** before making changes.
 - Prefer focused changes that follow existing naming, routing, and component conventions.
-- Use **apply_patch** for edits when available. If the Windows sandbox prevents it, use a carefully scoped equivalent and verify the exact file afterward.
+- Use the Edit/Write tools for file changes. Keep edits focused and verify the exact file afterward.
 - Do not use broad destructive commands, reset the worktree, or delete user files without explicit scope and verification.
 - Do not commit or push automatically. The owner decides when to review, commit, and push to **feetee00500/event.git**.
 - Before committing, inspect untracked **.agents/**, **skills-lock.json**, and migration files; include only files intentionally owned by this project.
