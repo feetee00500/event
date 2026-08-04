@@ -22,9 +22,11 @@ export default async function EventDetailPage({ params }: Props) {
   if (!user) return null;
   const { eventId } = await params;
   try {
-    const event = await getEvent(user, eventId);
+    const [event, checkedInCount] = await Promise.all([
+      getEvent(user, eventId),
+      prisma.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
+    ]);
     if (!event) return <InlineNotice tone="error">ไม่พบ Event หรือคุณไม่ได้รับมอบหมายงานนี้</InlineNotice>;
-    const checkedInCount = await prisma.attendee.count({ where: { eventId, status: "CHECKED_IN" } });
     const rate = event._count.attendees ? Math.min(100, Math.round((checkedInCount / event._count.attendees) * 100)) : 0;
     const canWrite = canManageEvent(user.role, event.assignments[0]?.role);
     const canScan = canCheckIn(user.role, event.assignments[0]?.role);

@@ -1,4 +1,5 @@
 import type { EventAssignmentRole, EventStatus, TicketStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { eventScope } from "@/lib/permissions";
 import { isDevelopmentAuthBypassEnabled, type CurrentUser } from "@/lib/auth";
@@ -71,7 +72,20 @@ export async function getTickets(user: CurrentUser, eventId: string, accessVerif
 
 export async function getCheckins(user: CurrentUser, eventId: string, accessVerified = false) {
   if (!accessVerified && !(await hasEventAccess(user, eventId))) return null;
-  return prisma.checkin.findMany({ where: { eventId }, orderBy: { scannedAt: "desc" }, take: 100, include: { ticket: { include: { attendee: true } }, gate: true, scannedBy: true } });
+  return prisma.checkin.findMany({
+    where: { eventId },
+    orderBy: { scannedAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      result: true,
+      scannedAt: true,
+      deviceId: true,
+      gate: { select: { name: true } },
+      scannedBy: { select: { name: true } },
+      ticket: { select: { ticketNumber: true, ticketType: true, attendee: { select: { firstName: true, lastName: true } } } },
+    },
+  });
 }
 
 export async function getReportData(user: CurrentUser, eventId: string, accessVerified = false) {
@@ -84,15 +98,16 @@ export async function getReportData(user: CurrentUser, eventId: string, accessVe
     prisma.attendee.count({ where: { eventId, status: "CANCELLED" } }),
     prisma.gate.findMany({ where: { eventId }, include: { _count: { select: { checkins: { where: { result: "SUCCESS" } } } } }, orderBy: { name: "asc" } }),
     prisma.ticket.groupBy({ by: ["ticketType"], where: { eventId, status: { not: "CANCELLED" } }, _count: { _all: true } }),
-    prisma.checkin.findMany({ where: { eventId, result: "SUCCESS" }, select: { scannedAt: true }, orderBy: { scannedAt: "asc" } }),
+    prisma.$queryRaw<Array<{ hour: string; count: bigint }>>(Prisma.sql`
+      SELECT to_char(date_trunc('hour', "scannedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Bangkok'), 'HH24') AS hour, COUNT(*) AS count
+      FROM "Checkin"
+      WHERE "eventId" = ${eventId} AND "result" = 'SUCCESS'
+      GROUP BY 1
+      ORDER BY 1
+    `),
   ]);
-  const byHour = new Map<string, number>();
-  const hourFormatter = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", hour12: false });
-  for (const scan of hourly) {
-    const key = hourFormatter.format(scan.scannedAt);
-    byHour.set(key, (byHour.get(key) ?? 0) + 1);
-  }
-  return { registered, checkedIn, noShow: Math.max(0, registered - checkedIn - cancelled), duplicateScans, invalidScans, gates: gates.map((gate) => ({ id: gate.id, name: gate.name, count: gate._count.checkins })), byType: byType.map((item) => ({ type: item.ticketType, count: item._count._all })), byHour: Array.from(byHour.entries()).map(([hour, count]) => ({ hour, count })), successfulScans: hourly.length };
+  const byHour = hourly.map((item) => ({ hour: item.hour, count: Number(item.count) }));
+  return { registered, checkedIn, noShow: Math.max(0, registered - checkedIn - cancelled), duplicateScans, invalidScans, gates: gates.map((gate) => ({ id: gate.id, name: gate.name, count: gate._count.checkins })), byType: byType.map((item) => ({ type: item.ticketType, count: item._count._all })), byHour, successfulScans: byHour.reduce((total, item) => total + item.count, 0) };
 }
 
 export async function getUsers(user: CurrentUser) {

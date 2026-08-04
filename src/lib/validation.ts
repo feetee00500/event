@@ -8,7 +8,7 @@ export const eventSchema = z.object({
   name: z.string().trim().min(2, "กรุณาระบุชื่องาน").max(160, "ชื่องานยาวเกินไป"),
   description: z.string().trim().max(5000, "รายละเอียดงานยาวเกินไป").optional().or(z.literal("")),
   venue: z.string().trim().min(2, "กรุณาระบุสถานที่").max(240, "สถานที่ยาวเกินไป"),
-  imageUrl: z.string().url("URL รูปภาพไม่ถูกต้อง").optional().or(z.literal("")),
+  imageUrl: z.string().max(1_500_000, "รูปภาพใหญ่เกินไป").refine((value) => value === "" || value.startsWith("data:image/") || /^https?:\/\//i.test(value), "URL รูปภาพไม่ถูกต้อง").optional().or(z.literal("")),
   startAt: dateTime,
   endAt: dateTime,
   checkinOpenAt: dateTime,

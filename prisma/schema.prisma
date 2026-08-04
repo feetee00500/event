@@ -168,6 +168,7 @@ model Ticket {
   checkins Checkin[]
 
   @@index([eventId, status])
+  @@index([eventId, createdAt])
   @@index([attendeeId])
   @@index([expiresAt])
 }
