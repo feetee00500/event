@@ -15,7 +15,7 @@ export default async function EventsPage() {
   try {
     const events = await getEvents(user);
     const canWrite = user.role === "SUPER_ADMIN" || user.role === "EVENT_ADMIN";
-    return <><PageHeader eyebrow="กิจกรรมทั้งหมด" title="กิจกรรมในระบบ" description={`ค้นหา ตรวจสถานะ และเปิด Event Workspace ของ ${PRODUCT_NAME}`} action={canWrite ? <Button href="/admin/events/new"><Plus size={17} />สร้างกิจกรรม</Button> : undefined} /><div className="mb-5 flex items-center gap-2 rounded-sm border border-line bg-white px-4 py-3 text-sm text-muted"><Radio size={17} aria-hidden="true" /><span>ระบบปัจจุบันรองรับโครงการ IIRFA 2026 เพียงรายการเดียว ข้อมูลทุกส่วนอ้างอิงจาก Event เดียวกัน</span></div><EventList initialEvents={events} canWrite={canWrite} /></>;
+    return <><PageHeader eyebrow="กิจกรรมทั้งหมด" title="กิจกรรมในระบบ" description={`ค้นหา ตรวจสถานะ และเปิด Event Workspace ของ ${PRODUCT_NAME}`} action={canWrite ? <Button href="/admin/events/new"><Plus size={17} />สร้างกิจกรรม</Button> : undefined} /><div className="mb-5 flex items-center gap-2 rounded-sm border border-line bg-white px-4 py-3 text-sm text-muted"><Radio size={17} aria-hidden="true" /><span>ระบบปัจจุบันรองรับโครงการ IIRFA 2026 เพียงรายการเดียว ข้อมูลทุกส่วนอ้างอิงจาก Event เดียวกัน</span></div>    <EventList initialEvents={events} canWrite={canWrite} canDelete={user.role === "SUPER_ADMIN"} /></>;
   } catch {
     return <><PageHeader eyebrow="กิจกรรมทั้งหมด" title="ข้อมูลกิจกรรม" /><InlineNotice tone="error">ยังเชื่อมต่อฐานข้อมูลไม่ได้ กรุณาตรวจสอบ DATABASE_URL ก่อนโหลดรายการกิจกรรม</InlineNotice></>;
   }
