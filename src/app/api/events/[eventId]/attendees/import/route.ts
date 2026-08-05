@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: Context) {
     let imported = 0;
     for (let offset = 0; offset < rows.length; offset += IMPORT_CONCURRENCY) {
       const batch = rows.slice(offset, offset + IMPORT_CONCURRENCY);
-      const results = await Promise.all(batch.map(async (row, batchIndex) => {
+      const results: Array<{ row: number; error: string } | { row: number; attendeeId: string }> = await Promise.all(batch.map(async (row, batchIndex) => {
         const index = offset + batchIndex;
         const parsed = attendeeSchema.safeParse({ title: value(row, "title", "คำนำหน้า"), firstName: value(row, "firstname", "first_name", "ชื่อ"), lastName: value(row, "lastname", "last_name", "นามสกุล"), email: value(row, "email", "อีเมล"), phone: value(row, "phone", "เบอร์โทร"), company: value(row, "company", "บริษัท"), referenceCode: value(row, "referencecode", "reference_code", "เลขอ้างอิง"), ticketType: value(row, "tickettype", "ticket_type", "ประเภทบัตร") || "General", note: value(row, "note", "หมายเหตุ") });
         if (!parsed.success) return { row: index + 2, error: Object.values(parsed.error.flatten().fieldErrors).flat().join(", ") || "ข้อมูลไม่ครบ" };
@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: Context) {
         }
       }));
       for (const result of results) {
-        if (result.error) errors.push({ row: result.row, message: result.error });
+        if ("error" in result) errors.push({ row: result.row, message: result.error });
         else {
           imported += 1;
           importedAttendeeIds.push(result.attendeeId);

@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { canManageEvent } from "@/lib/permissions";
-import { getAttendees, getEvent, MAX_LIST_ROWS } from "@/lib/server-data";
+import { getAttendeesPageData, MAX_LIST_ROWS } from "@/lib/server-data";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { EventTabs } from "@/components/event/event-tabs";
 import { AttendeeManager, type AttendeeRow } from "@/components/attendee/attendee-manager";
@@ -15,12 +15,8 @@ export default async function AttendeesPage({ params }: Props) {
   if (!user) return null;
   const { eventId } = await params;
   try {
-    const [event, result] = await Promise.all([
-      getEvent(user, eventId),
-      getAttendees(user, eventId),
-    ]);
+    const { event, attendees: result } = await getAttendeesPageData(user, eventId);
     const attendees = result.rows;
-    if (!event) return <><PageHeader eyebrow="Event" title="ผู้เข้าร่วมงาน" description="เพิ่ม แก้ไข ลบรายชื่อ และติดตามสถานะบัตรของแต่ละคน" /><EventTabs eventId={eventId} active="/attendees" canManage={false} /><div className="mt-6"><InlineNotice tone="error">ไม่พบ Event</InlineNotice></div></>;
     const rows: AttendeeRow[] = attendees.map((attendee) => ({
       id: attendee.id,
       title: attendee.title,

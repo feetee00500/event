@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Copy, ExternalLink, QrCode, RefreshCw, Ticket as TicketIcon, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,8 +9,12 @@ import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState, InlineNotice } from "@/components/ui/feedback";
 import { Modal } from "@/components/ui/modal";
 import { PrintButton } from "@/components/report/print-button";
-import { IirfaTicketPass } from "@/components/ticket/iirfa-ticket-pass";
 import { PRODUCT_NAME } from "@/lib/branding";
+
+const IirfaTicketPass = dynamic(
+  () => import("@/components/ticket/iirfa-ticket-pass").then((module) => module.IirfaTicketPass),
+  { ssr: false, loading: () => <div className="min-h-[520px] animate-pulse rounded-md bg-paper" aria-label="กำลังเตรียม QR บัตร" /> },
+);
 
 export type TicketRow = { id: string; ticketNumber: string; ticketType: string; status: string; issuedAt: string; expiresAt: string | null; checkedInAt: string | null; attendeeStatus: string; attendee: { name: string; email: string | null } };
 type TicketEvent = { name: string; startAt: string; endAt: string; venue: string };

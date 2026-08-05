@@ -30,7 +30,6 @@ export function DeleteEventButton({ eventId, eventName, menuItem = false }: { ev
       setOpen(false);
       setConfirm("");
       router.push("/admin/events");
-      router.refresh();
     } finally {
       setBusy(false);
     }

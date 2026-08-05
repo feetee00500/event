@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight, CalendarDays, MapPin, UsersRound } from "lucide-react";
 import type { EventStatus } from "@prisma/client";

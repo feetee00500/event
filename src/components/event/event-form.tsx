@@ -107,7 +107,7 @@ export function EventForm({ event }: { event?: Partial<EventFormValue> }) {
     if (!parsed.success) { const fields = parsed.error.flatten().fieldErrors; setErrors(Object.fromEntries(Object.entries(fields).map(([key, messages]) => [key, messages?.[0] ?? "ข้อมูลไม่ถูกต้อง"]))); const firstErrorStep = steps.findIndex((_, index) => index < 3 && Object.keys(fields).some((field) => (index === 0 && ["name", "description"].includes(field)) || (index === 1 && ["venue", "imageUrl", "startAt", "endAt"].includes(field)) || (index === 2 && ["checkinOpenAt", "checkinCloseAt", "status", "accessMode"].includes(field)))); setStep(firstErrorStep >= 0 ? firstErrorStep : 0); return; }
     setSaving(true); const response = await fetch(value.id ? `/api/events/${value.id}` : "/api/events", { method: value.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data) }); const body = await response.json().catch(() => ({}));
     if (!response.ok) { setMessage(body.error ?? "ไม่สามารถบันทึกข้อมูลได้"); setSaving(false); return; }
-    setDirty(false); router.push(value.id ? `/admin/events/${value.id}` : "/admin/events"); router.refresh();
+    setDirty(false); router.push(value.id ? `/admin/events/${value.id}` : "/admin/events");
   }
   function saveDraft() { const fakeEvent = { preventDefault() {}, } as FormEvent<HTMLFormElement>; void submit(fakeEvent, "DRAFT"); }
 

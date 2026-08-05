@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { CheckCircle2, Download, Edit3, FileSpreadsheet, Loader2, Plus, RefreshCw, Search, Ticket, Trash2, Upload, UsersRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
@@ -64,6 +66,7 @@ const attendeeStatus: Record<string, string> = {
 };
 
 export function AttendeeManager({ eventId, initialAttendees, canWrite }: { eventId: string; initialAttendees: AttendeeRow[]; canWrite: boolean }) {
+  const router = useRouter();
   const [attendees, setAttendees] = useState(initialAttendees);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -78,19 +81,26 @@ export function AttendeeManager({ eventId, initialAttendees, canWrite }: { event
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
+  useEffect(() => { setAttendees(initialAttendees); }, [initialAttendees]);
+  const deferredSearch = useDebouncedValue(search, 300);
   const rows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+    const normalizedSearch = deferredSearch.trim().toLowerCase();
     return attendees.filter((row) => {
       const searchable = `${row.title ?? ""} ${row.firstName} ${row.lastName} ${row.email ?? ""} ${row.phone ?? ""} ${row.company ?? ""} ${row.referenceCode ?? ""}`.toLowerCase();
       return (!normalizedSearch || searchable.includes(normalizedSearch)) && (status === "ALL" || row.status === status);
     });
-  }, [attendees, search, status]);
+  }, [attendees, deferredSearch, status]);
 
+  const summary = useMemo(() => attendees.reduce((counts, row) => {
+    counts.ticketCount += row.ticket ? 1 : 0;
+    counts.checkedInCount += row.status === "CHECKED_IN" || Boolean(row.ticket?.checkedInAt) ? 1 : 0;
+    counts.cancelledCount += row.status === "CANCELLED" ? 1 : 0;
+    return counts;
+  }, { ticketCount: 0, checkedInCount: 0, cancelledCount: 0 }), [attendees]);
   const totalCount = attendees.length;
-  const ticketCount = attendees.filter((row) => Boolean(row.ticket)).length;
-  const checkedInCount = attendees.filter((row) => row.status === "CHECKED_IN" || Boolean(row.ticket?.checkedInAt)).length;
-  const cancelledCount = attendees.filter((row) => row.status === "CANCELLED").length;
-  const allVisibleSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id));
+  const { ticketCount, checkedInCount, cancelledCount } = summary;
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const allVisibleSelected = rows.length > 0 && rows.every((row) => selectedSet.has(row.id));
 
   function openCreate() {
     setEditing(null);
@@ -216,7 +226,7 @@ export function AttendeeManager({ eventId, initialAttendees, canWrite }: { event
     setMessage(response.ok ? { tone: "success", text: `สร้าง QR ใหม่แล้ว ${body.generated?.length ?? 0} รายการ` } : { tone: "error", text: body.error ?? "สร้าง QR ไม่สำเร็จ" });
     setSelected([]);
     setBusy(false);
-    if (response.ok) window.location.reload();
+    if (response.ok) router.refresh();
   }
 
   async function chooseFile(next: File | null) {
@@ -247,7 +257,7 @@ export function AttendeeManager({ eventId, initialAttendees, canWrite }: { event
       setImportOpen(false);
       setFile(null);
       setPreview([]);
-      window.location.reload();
+      router.refresh();
     }
   }
 
@@ -302,7 +312,7 @@ export function AttendeeManager({ eventId, initialAttendees, canWrite }: { event
                 <caption className="sr-only">รายชื่อผู้เข้าร่วมงาน</caption>
                 <thead><tr>{canWrite ? <th className="w-10"><input type="checkbox" aria-label="เลือกทั้งหมด" checked={allVisibleSelected} onChange={toggleAll} /></th> : null}<th>ผู้เข้าร่วม</th><th>ติดต่อ</th><th>Ticket</th><th>สถานะ</th>{canWrite ? <th className="text-right">การทำงาน</th> : null}</tr></thead>
                 <tbody>{rows.map((row) => <tr key={row.id}>
-                  {canWrite ? <td><input type="checkbox" aria-label={`เลือก ${row.firstName} ${row.lastName}`} checked={selected.includes(row.id)} onChange={() => setSelected((current) => current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id])} /></td> : null}
+                  {canWrite ? <td><input type="checkbox" aria-label={`เลือก ${row.firstName} ${row.lastName}`} checked={selectedSet.has(row.id)} onChange={() => setSelected((current) => current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id])} /></td> : null}
                   <td><div className="max-w-[260px]"><p className="font-semibold break-words">{row.title ? `${row.title} ` : ""}{row.firstName} {row.lastName}</p><p className="mt-0.5 break-words text-xs text-muted">{row.company || row.referenceCode || "ไม่มีข้อมูลเพิ่มเติม"}</p></div></td>
                   <td><p className="break-all text-sm">{row.email || "—"}</p><p className="text-xs text-muted">{row.phone || "—"}</p></td>
                   <td><p className="mono whitespace-nowrap text-xs">{row.ticket?.ticketNumber || "—"}</p><p className="mt-1 text-xs text-muted">{row.ticket?.ticketType || "—"}</p></td>
@@ -316,7 +326,7 @@ export function AttendeeManager({ eventId, initialAttendees, canWrite }: { event
           <div className="divide-y divide-line md:hidden">
             {rows.map((row) => <article key={row.id} className="p-4">
               <div className="flex items-start gap-3">
-                {canWrite ? <input className="mt-1 h-5 w-5 shrink-0" type="checkbox" aria-label={`เลือก ${row.firstName} ${row.lastName}`} checked={selected.includes(row.id)} onChange={() => setSelected((current) => current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id])} /> : null}
+                {canWrite ? <input className="mt-1 h-5 w-5 shrink-0" type="checkbox" aria-label={`เลือก ${row.firstName} ${row.lastName}`} checked={selectedSet.has(row.id)} onChange={() => setSelected((current) => current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id])} /> : null}
                 <div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><h3 className="break-words font-semibold">{row.title ? `${row.title} ` : ""}{row.firstName} {row.lastName}</h3><p className="mt-0.5 break-words text-xs text-muted">{row.company || row.referenceCode || "ไม่มีข้อมูลเพิ่มเติม"}</p></div><StatusBadge status={row.status} label={attendeeStatus[row.status] ?? row.status} /></div><dl className="mt-4 grid gap-2 text-sm"><div className="flex min-w-0 justify-between gap-3"><dt className="shrink-0 text-muted">ติดต่อ</dt><dd className="min-w-0 break-all text-right">{row.email || row.phone || "—"}</dd></div><div className="flex min-w-0 justify-between gap-3"><dt className="shrink-0 text-muted">Ticket</dt><dd className="mono min-w-0 break-all text-right text-xs">{row.ticket?.ticketNumber || "—"}</dd></div><div className="flex min-w-0 justify-between gap-3"><dt className="shrink-0 text-muted">ประเภท</dt><dd className="text-right">{row.ticket?.ticketType || "—"}</dd></div></dl>{canWrite ? <div className="mt-4 grid grid-cols-2 gap-2"><Button size="sm" variant="secondary" className="w-full" onClick={() => openEdit(row)}><Edit3 size={15} />แก้ไข</Button><Button size="sm" variant="ghost" className="w-full text-danger" onClick={() => setDeleteTarget(row)}><Trash2 size={15} />ลบ</Button></div> : null}</div>
               </div>
             </article>)}

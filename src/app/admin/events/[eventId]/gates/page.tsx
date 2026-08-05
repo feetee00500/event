@@ -1,6 +1,6 @@
 import { getSessionUser } from "@/lib/auth";
 import { canManageEvent } from "@/lib/permissions";
-import { getEvent } from "@/lib/server-data";
+import { getEventWithGates } from "@/lib/server-data";
 import { loadWithFallback } from "@/lib/data-loading";
 
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -15,7 +15,7 @@ export default async function GatesPage({ params }: Props) {
   const user = await getSessionUser();
   if (!user) return null;
   const { eventId } = await params;
-    const { data: event, hasError } = await loadWithFallback(() => getEvent(user, eventId), null, "GatesPage.getEvent");
+    const { data: event, hasError } = await loadWithFallback(() => getEventWithGates(user, eventId), null, "GatesPage.getEventWithGates");
     if (!event) return <><PageHeader eyebrow="Event" title="จุดเข้างาน" description="กำหนด Gate และ Device Code สำหรับเจ้าหน้าที่หน้างาน" /><EventTabs eventId={eventId} active="/gates" canManage={false} /><div className="mt-6">{hasError ? <DataLoadNotice resource="Gate" /> : <InlineNotice tone="error">ไม่พบ Event</InlineNotice>}</div></>;
     const gates = [...event.gates].sort((a, b) => a.name.localeCompare(b.name, "th"));
     const rows: GateRow[] = gates.map((gate) => ({ id: gate.id, name: gate.name, description: gate.description, location: gate.location, deviceCode: gate.deviceCode, isActive: gate.isActive, checkins: gate._count.checkins }));
