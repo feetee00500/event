@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 export async function writeAuditLog(input: {
   userId?: string;
@@ -11,5 +11,6 @@ export async function writeAuditLog(input: {
   newValue?: Prisma.InputJsonValue;
   ipAddress?: string;
 }): Promise<void> {
-  await prisma.auditLog.create({ data: input });
+  const db = getDb();
+  await db.auditLog.create({ data: input });
 }

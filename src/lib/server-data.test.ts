@@ -4,13 +4,13 @@ import { getAttendeesPageData, getCheckinsPageData, getReportData, getReportPage
 const mocks = vi.hoisted(() => ({
   attendeeCount: vi.fn(), attendeeFindMany: vi.fn(), checkinCount: vi.fn(), checkinFindMany: vi.fn(), gateFindMany: vi.fn(), ticketFindMany: vi.fn(), ticketGroupBy: vi.fn(), queryRaw: vi.fn(), requireEvent: vi.fn(),
 }));
-vi.mock("@/lib/db", () => ({ prisma: {
+vi.mock("@/lib/db", () => ({ getDb: () => ({
   attendee: { count: mocks.attendeeCount, findMany: mocks.attendeeFindMany },
   checkin: { count: mocks.checkinCount, findMany: mocks.checkinFindMany },
   gate: { findMany: mocks.gateFindMany },
   ticket: { findMany: mocks.ticketFindMany, groupBy: mocks.ticketGroupBy },
   $queryRaw: mocks.queryRaw,
-} }));
+}) }));
 vi.mock("@/lib/guards", () => ({ requireEvent: mocks.requireEvent }));
 vi.mock("@/lib/auth", () => ({ isDevelopmentAuthBypassEnabled: vi.fn(() => false) }));
 

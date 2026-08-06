@@ -12,6 +12,7 @@ export function apiError(error: unknown): NextResponse {
 }
 
 export function getRequestMeta(request: Request): { ipAddress?: string; userAgent?: string } {
+  const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return { ipAddress: forwarded || request.headers.get("x-real-ip") || undefined, userAgent: request.headers.get("user-agent") || undefined };
+  return { ipAddress: cloudflareIp || forwarded || request.headers.get("x-real-ip") || undefined, userAgent: request.headers.get("user-agent") || undefined };
 }

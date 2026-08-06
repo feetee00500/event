@@ -13,11 +13,11 @@ vi.mock("xlsx", () => ({
   read: vi.fn(() => ({ SheetNames: ["Sheet1"], Sheets: { Sheet1: {} } })),
   utils: { sheet_to_json: vi.fn(() => mocks.rows) },
 }));
-vi.mock("@/lib/db", () => ({ prisma: {
+vi.mock("@/lib/db", () => ({ getDb: () => ({
   attendee: { findMany: mocks.findMany },
   auditLog: { create: mocks.auditCreate },
   $transaction: mocks.transaction,
-} }));
+}) }));
 vi.mock("@/lib/http", () => ({ apiError: vi.fn(() => new Response(null, { status: 500 })) }));
 vi.mock("@/lib/guards", () => ({
   requireAuthenticatedUser: vi.fn(async () => ({ id: "admin-a", role: "SUPER_ADMIN" })),

@@ -1,6 +1,6 @@
 import type { EventAssignmentRole, EventStatus, TicketStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { eventScope } from "@/lib/permissions";
 import { requireEvent } from "@/lib/guards";
 import { type CurrentUser } from "@/lib/auth";
@@ -20,7 +20,8 @@ export type EventListItem = {
 };
 
 export async function getEvents(user: CurrentUser): Promise<EventListItem[]> {
-  const events = await prisma.event.findMany({
+  const db = getDb();
+  const events = await db.event.findMany({
     where: eventScope(user.id, user.role),
     orderBy: { startAt: "asc" },
     include: { assignments: { where: { userId: user.id }, take: 1, select: { role: true } }, _count: { select: { attendees: true, tickets: { where: { status: "CHECKED_IN" } } } } },
@@ -29,7 +30,8 @@ export async function getEvents(user: CurrentUser): Promise<EventListItem[]> {
 }
 
 export async function getEvent(user: CurrentUser, eventId: string) {
-  return prisma.event.findFirst({
+  const db = getDb();
+  return db.event.findFirst({
     where: { id: eventId, ...eventScope(user.id, user.role) },
     include: {
       assignments: { where: { userId: user.id }, take: 1, select: { role: true } },
@@ -40,7 +42,8 @@ export async function getEvent(user: CurrentUser, eventId: string) {
 }
 
 export async function getEventSummary(user: CurrentUser, eventId: string) {
-  return prisma.event.findFirst({
+  const db = getDb();
+  return db.event.findFirst({
     where: { id: eventId, ...eventScope(user.id, user.role) },
     select: {
       id: true,
@@ -60,7 +63,8 @@ export async function getEventSummary(user: CurrentUser, eventId: string) {
 }
 
 export async function getEventWithGates(user: CurrentUser, eventId: string) {
-  return prisma.event.findFirst({
+  const db = getDb();
+  return db.event.findFirst({
     where: { id: eventId, ...eventScope(user.id, user.role) },
     select: {
       id: true,
@@ -83,15 +87,16 @@ export async function getEventWithGates(user: CurrentUser, eventId: string) {
 }
 
 export async function getDashboardData(user: CurrentUser) {
+  const db = getDb();
   const scope = eventScope(user.id, user.role);
   const { start: todayStart, end: tomorrow } = bangkokDayBounds();
   const [eventCount, upcomingCount, attendeeCount, checkedInCount, checkinsToday, latestEvents] = await Promise.all([
-    prisma.event.count({ where: scope }),
-    prisma.event.count({ where: { ...scope, startAt: { gte: new Date() }, status: { in: ["PUBLISHED", "ACTIVE"] } } }),
-    prisma.attendee.count({ where: { event: scope } }),
-    prisma.attendee.count({ where: { event: scope, status: "CHECKED_IN" } }),
-    prisma.checkin.count({ where: { event: scope, result: "SUCCESS", scannedAt: { gte: todayStart, lt: tomorrow } } }),
-    prisma.event.findMany({ where: scope, orderBy: { startAt: "asc" }, take: 5, include: { _count: { select: { attendees: true, tickets: { where: { status: "CHECKED_IN" } } } } } }),
+    db.event.count({ where: scope }),
+    db.event.count({ where: { ...scope, startAt: { gte: new Date() }, status: { in: ["PUBLISHED", "ACTIVE"] } } }),
+    db.attendee.count({ where: { event: scope } }),
+    db.attendee.count({ where: { event: scope, status: "CHECKED_IN" } }),
+    db.checkin.count({ where: { event: scope, result: "SUCCESS", scannedAt: { gte: todayStart, lt: tomorrow } } }),
+    db.event.findMany({ where: scope, orderBy: { startAt: "asc" }, take: 5, include: { _count: { select: { attendees: true, tickets: { where: { status: "CHECKED_IN" } } } } } }),
   ]);
   return { eventCount, upcomingCount, attendeeCount, checkedInCount, checkinsToday, latestEvents: latestEvents.map((event) => ({ id: event.id, name: event.name, venue: event.venue, imageUrl: event.imageUrl, startAt: event.startAt.toISOString(), endAt: event.endAt.toISOString(), status: event.status, registered: event._count.attendees, checkedIn: event._count.tickets })) };
 }
@@ -106,7 +111,8 @@ async function withBound<T>(fetch: (take: number) => Promise<T[]>): Promise<List
 }
 
 function findAttendees(eventId: string) {
-  return withBound((take) => prisma.attendee.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, take, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, ticketNumber: true, ticketType: true, status: true, issuedAt: true, checkedInAt: true } } } }));
+  const db = getDb();
+  return withBound((take) => db.attendee.findMany({ where: { eventId }, orderBy: { createdAt: "desc" }, take, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, ticketNumber: true, ticketType: true, status: true, issuedAt: true, checkedInAt: true } } } }));
 }
 
 export async function getAttendees(user: CurrentUser, eventId: string) {
@@ -121,7 +127,8 @@ export async function getAttendeesPageData(user: CurrentUser, eventId: string) {
 }
 
 function findTickets(eventId: string) {
-  return withBound((take) => prisma.ticket.findMany({
+  const db = getDb();
+  return withBound((take) => db.ticket.findMany({
     where: { eventId },
     orderBy: { createdAt: "desc" },
     take,
@@ -150,7 +157,8 @@ export async function getTicketsPageData(user: CurrentUser, eventId: string) {
 }
 
 function findCheckins(eventId: string) {
-  return prisma.checkin.findMany({
+  const db = getDb();
+  return db.checkin.findMany({
     where: { eventId },
     orderBy: { scannedAt: "desc" },
     take: 100,
@@ -178,15 +186,16 @@ export async function getCheckinsPageData(user: CurrentUser, eventId: string) {
 }
 
 async function findReportData(eventId: string) {
+  const db = getDb();
   const [registered, checkedIn, duplicateScans, invalidScans, cancelled, gates, byType, hourly] = await Promise.all([
-    prisma.attendee.count({ where: { eventId } }),
-    prisma.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
-    prisma.checkin.count({ where: { eventId, result: "ALREADY_CHECKED_IN" } }),
-    prisma.checkin.count({ where: { eventId, result: "INVALID_TOKEN" } }),
-    prisma.attendee.count({ where: { eventId, status: "CANCELLED" } }),
-    prisma.gate.findMany({ where: { eventId }, include: { _count: { select: { checkins: { where: { result: "SUCCESS" } } } } }, orderBy: { name: "asc" } }),
-    prisma.ticket.groupBy({ by: ["ticketType"], where: { eventId, status: { not: "CANCELLED" } }, _count: { _all: true } }),
-    prisma.$queryRaw<Array<{ hour: string; count: bigint }>>(Prisma.sql`
+    db.attendee.count({ where: { eventId } }),
+    db.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
+    db.checkin.count({ where: { eventId, result: "ALREADY_CHECKED_IN" } }),
+    db.checkin.count({ where: { eventId, result: "INVALID_TOKEN" } }),
+    db.attendee.count({ where: { eventId, status: "CANCELLED" } }),
+    db.gate.findMany({ where: { eventId }, include: { _count: { select: { checkins: { where: { result: "SUCCESS" } } } } }, orderBy: { name: "asc" } }),
+    db.ticket.groupBy({ by: ["ticketType"], where: { eventId, status: { not: "CANCELLED" } }, _count: { _all: true } }),
+    db.$queryRaw<Array<{ hour: string; count: bigint }>>(Prisma.sql`
       SELECT to_char(date_trunc('hour', "scannedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Bangkok'), 'HH24') AS hour, COUNT(*) AS count
       FROM "Checkin"
       WHERE "eventId" = ${eventId} AND "result" = 'SUCCESS'
@@ -211,7 +220,8 @@ export async function getReportPageData(user: CurrentUser, eventId: string) {
 
 export async function getUsers(user: CurrentUser) {
   if (user.role !== "SUPER_ADMIN") return [];
-  return prisma.user.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, email: true, role: true, isActive: true, lastLoginAt: true, createdAt: true, _count: { select: { assignments: true } } } });
+  const db = getDb();
+  return db.user.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, email: true, role: true, isActive: true, lastLoginAt: true, createdAt: true, _count: { select: { assignments: true } } } });
 }
 
 export function ticketStatusLabel(status: TicketStatus): string {

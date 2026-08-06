@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/guards";
 import { apiError } from "@/lib/http";
 import { userSchema } from "@/lib/validation";
@@ -19,10 +19,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const currentUser = await requireAuthenticatedUser();
+    const db = getDb();
     if (currentUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "คุณไม่มีสิทธิ์สร้างผู้ใช้งาน" }, { status: 403 });
     const data = userSchema.parse(await request.json());
     const passwordHash = await bcrypt.hash(data.password, 12);
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await db.$transaction(async (tx) => {
       const created = await tx.user.create({ data: { name: data.name, email: data.email.toLowerCase(), passwordHash, role: data.role, isActive: data.isActive } });
       if (created.role !== "SUPER_ADMIN") {
         const event = await tx.event.findFirst({ select: { id: true } });

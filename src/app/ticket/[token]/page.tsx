@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarPlus, ShieldCheck } from "lucide-react";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { hashQrToken } from "@/lib/qr";
 import { formatBangkokDateTime } from "@/lib/timezone";
 import { IirfaTicketPass } from "@/components/ticket/iirfa-ticket-pass";
@@ -15,7 +15,8 @@ function calendarUrl(name: string, startAt: Date, endAt: Date, venue: string): s
 
 export default async function PublicTicketPage({ params }: Props) {
   const { token } = await params;
-  const ticket = await prisma.ticket.findUnique({ where: { qrTokenHash: hashQrToken(token) }, include: { attendee: true, event: true } });
+  const db = getDb();
+  const ticket = await db.ticket.findUnique({ where: { qrTokenHash: hashQrToken(token) }, include: { attendee: true, event: true } });
 
   if (!ticket) {
     return <main className="flex min-h-[100dvh] items-center justify-center bg-canvas px-4"><div className="w-full max-w-md rounded-md border border-line bg-white p-8 text-center shadow-soft"><AlertTriangle className="mx-auto text-danger" size={34} /><h1 className="mt-4 text-xl font-semibold tracking-[-0.03em]">ไม่พบบัตรเข้างาน</h1><p className="mt-2 text-sm leading-6 text-muted">ลิงก์อาจไม่ถูกต้อง หรือ QR Code นี้ถูกสร้างใหม่แล้ว</p></div></main>;

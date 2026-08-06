@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireAuthenticatedUser, requireEvent } from "@/lib/guards";
 import { apiError } from "@/lib/http";
 
@@ -16,11 +16,12 @@ function safeCell(value: string | null | undefined): string {
 export async function GET(_request: Request, { params }: Context) {
   try {
     const user = await requireAuthenticatedUser();
+    const db = getDb();
     const { eventId } = await params;
     await requireEvent(user, eventId, "events:read");
-    const total = await prisma.attendee.count({ where: { eventId } });
+    const total = await db.attendee.count({ where: { eventId } });
     if (total > MAX_EXPORT_ROWS) return NextResponse.json({ error: `งานนี้มีผู้เข้าร่วม ${total} คน เกินขีดจำกัดการ Export (${MAX_EXPORT_ROWS} รายการ) กรุณาลดขนาดข้อมูลก่อน` }, { status: 422 });
-    const attendees = await prisma.attendee.findMany({ where: { eventId }, orderBy: { lastName: "asc" }, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1 } } });
+    const attendees = await db.attendee.findMany({ where: { eventId }, orderBy: { lastName: "asc" }, include: { tickets: { orderBy: { createdAt: "desc" }, take: 1 } } });
     const rows = attendees.map((attendee) => ({ คำนำหน้า: safeCell(attendee.title), ชื่อ: safeCell(attendee.firstName), นามสกุล: safeCell(attendee.lastName), Email: safeCell(attendee.email), เบอร์โทร: safeCell(attendee.phone), บริษัท: safeCell(attendee.company), เลขอ้างอิง: safeCell(attendee.referenceCode), ประเภทบัตร: safeCell(attendee.tickets[0]?.ticketType), สถานะ: attendee.status }));
     const sheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();

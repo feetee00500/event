@@ -11,6 +11,8 @@ out/
 !.env.example
 .vercel/
 
+.open-next/
+.wrangler/
 # test/build output
 coverage/
 dist/

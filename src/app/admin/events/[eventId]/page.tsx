@@ -3,7 +3,7 @@ import { BarChart3, CalendarClock, CheckCircle2, Clock3, Edit3, MapPin, QrCode, 
 import { getSessionUser } from "@/lib/auth";
 import { canCheckIn, canManageEvent } from "@/lib/permissions";
 import { getEvent } from "@/lib/server-data";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { formatBangkokDateTime, formatBangkokTime } from "@/lib/timezone";
 import { Breadcrumbs } from "@/components/app-shell/breadcrumbs";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -24,9 +24,10 @@ export default async function EventDetailPage({ params }: Props) {
   if (!user) return null;
   const { eventId } = await params;
   try {
+    const db = getDb();
     const [event, checkedInCount] = await Promise.all([
       getEvent(user, eventId),
-      prisma.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
+      db.attendee.count({ where: { eventId, status: "CHECKED_IN" } }),
     ]);
     if (!event) return <><PageHeader eyebrow="Event" title="รายละเอียดกิจกรรม" description="ข้อมูลกิจกรรมและสถิติการเข้าร่วมงาน" /><EventTabs eventId={eventId} canManage={false} /><div className="mt-6"><InlineNotice tone="error">ไม่พบ Event หรือคุณไม่ได้รับมอบหมายงานนี้</InlineNotice></div></>;
     const rate = event._count.attendees ? Math.min(100, Math.round((checkedInCount / event._count.attendees) * 100)) : 0;

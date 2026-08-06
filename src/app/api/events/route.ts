@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { EventAssignmentRole } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/guards";
 import { apiError } from "@/lib/http";
 import { eventSchema } from "@/lib/validation";
@@ -19,11 +19,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireAuthenticatedUser();
+    const db = getDb();
     if (!hasPermission(user.role, "events:write")) {
       return NextResponse.json({ error: "คุณไม่มีสิทธิ์ตั้งค่าข้อมูลโครงการ" }, { status: 403 });
     }
 
-    const existingProject = await prisma.event.findFirst({ select: { id: true } });
+    const existingProject = await db.event.findFirst({ select: { id: true } });
     if (existingProject) {
       return NextResponse.json(
         { error: "ระบบนี้รองรับ IIRFA 2026 เพียงโครงการเดียว กรุณาแก้ไขระเบียนเดิม" },
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     const data = eventSchema.parse(await request.json());
-    const event = await prisma.$transaction(async (tx) => {
+    const event = await db.$transaction(async (tx) => {
       const created = await tx.event.create({
         data: {
           name: data.name,

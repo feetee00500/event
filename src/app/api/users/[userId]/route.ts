@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/guards";
 import { apiError } from "@/lib/http";
 import { z } from "zod";
@@ -10,11 +10,12 @@ const updateSchema = z.object({ role: z.enum(["SUPER_ADMIN", "EVENT_ADMIN", "EVE
 export async function PATCH(request: Request, { params }: Context) {
   try {
     const currentUser = await requireAuthenticatedUser();
+    const db = getDb();
     if (currentUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "คุณไม่มีสิทธิ์แก้ไขผู้ใช้งาน" }, { status: 403 });
     const { userId } = await params;
     if (userId === currentUser.id && (await request.clone().json().catch(() => ({})) as { isActive?: boolean }).isActive === false) return NextResponse.json({ error: "ไม่สามารถปิดใช้งานบัญชีของตนเอง" }, { status: 422 });
     const data = updateSchema.parse(await request.json());
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await db.$transaction(async (tx) => {
       const updated = await tx.user.update({ where: { id: userId }, data });
       if (data.role === "SUPER_ADMIN") {
         await tx.eventAssignment.deleteMany({ where: { userId } });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireAuthenticatedUser, requireEvent } from "@/lib/guards";
 import { apiError } from "@/lib/http";
 import { attendeeSchema } from "@/lib/validation";
@@ -20,6 +20,7 @@ function value(row: InputRow, ...keys: string[]): string {
 export async function POST(request: Request, { params }: Context) {
   try {
     const user = await requireAuthenticatedUser();
+    const db = getDb();
     const { eventId } = await params;
     await requireEvent(user, eventId, "attendees:write");
     const form = await request.formData();
@@ -40,7 +41,7 @@ export async function POST(request: Request, { params }: Context) {
         const parsed = attendeeSchema.safeParse({ title: value(row, "title", "คำนำหน้า"), firstName: value(row, "firstname", "first_name", "ชื่อ"), lastName: value(row, "lastname", "last_name", "นามสกุล"), email: value(row, "email", "อีเมล"), phone: value(row, "phone", "เบอร์โทร"), company: value(row, "company", "บริษัท"), referenceCode: value(row, "referencecode", "reference_code", "เลขอ้างอิง"), ticketType: value(row, "tickettype", "ticket_type", "ประเภทบัตร") || "General", note: value(row, "note", "หมายเหตุ") });
         if (!parsed.success) return { row: index + 2, error: Object.values(parsed.error.flatten().fieldErrors).flat().join(", ") || "ข้อมูลไม่ครบ" };
         try {
-          const attendeeId = await prisma.$transaction(async (tx) => {
+          const attendeeId = await db.$transaction(async (tx) => {
             const attendee = await tx.attendee.create({ data: { eventId, title: parsed.data.title || null, firstName: parsed.data.firstName, lastName: parsed.data.lastName, email: parsed.data.email || null, phone: parsed.data.phone || null, company: parsed.data.company || null, referenceCode: parsed.data.referenceCode || null, note: parsed.data.note || null } });
             await issueTicket(tx, { eventId, attendeeId: attendee.id, ticketType: parsed.data.ticketType, updateAttendeeStatus: false });
             return attendee.id;
@@ -59,9 +60,9 @@ export async function POST(request: Request, { params }: Context) {
       }
     }
     if (importedAttendeeIds.length) {
-      await prisma.attendee.updateMany({ where: { id: { in: importedAttendeeIds } }, data: { status: "QR_GENERATED" } });
+      await db.attendee.updateMany({ where: { id: { in: importedAttendeeIds } }, data: { status: "QR_GENERATED" } });
     }
-    await prisma.auditLog.create({ data: { userId: user.id, eventId, action: "ATTENDEES_IMPORTED", entityType: "Attendee", newValue: { imported, rejected: errors.length } } });
+    await db.auditLog.create({ data: { userId: user.id, eventId, action: "ATTENDEES_IMPORTED", entityType: "Attendee", newValue: { imported, rejected: errors.length } } });
     return NextResponse.json({ imported, rejected: errors.length, errors });
   } catch (error) {
     return apiError(error);

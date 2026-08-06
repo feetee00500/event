@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { AuthRequiredError, getSessionUser, requireUser, type CurrentUser } from "@/lib/auth";
 import { canCheckIn, canManageEvent, eventScope, hasPermission, type Permission } from "@/lib/permissions";
 
@@ -18,7 +18,8 @@ export class NotFoundError extends Error {
 
 export async function requireEvent(user: CurrentUser, eventId: string, permission: Permission) {
   if (!hasPermission(user.role, permission)) throw new ForbiddenError();
-  const event = await prisma.event.findFirst({ where: { id: eventId, ...eventScope(user.id, user.role) }, include: { assignments: { where: { userId: user.id }, select: { role: true } } } });
+  const db = getDb();
+  const event = await db.event.findFirst({ where: { id: eventId, ...eventScope(user.id, user.role) }, include: { assignments: { where: { userId: user.id }, select: { role: true } } } });
   if (!event) throw new NotFoundError("ไม่พบ Event หรือคุณไม่ได้รับมอบหมายงานนี้");
   const assignment = event.assignments[0]?.role;
   if (["events:write", "attendees:write", "tickets:write"].includes(permission) && !canManageEvent(user.role, assignment)) throw new ForbiddenError();

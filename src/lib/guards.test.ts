@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError, NotFoundError, requireEvent } from "@/lib/guards";
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
-vi.mock("@/lib/db", () => ({ prisma: { event: { findFirst: mocks.findFirst } } }));
+vi.mock("@/lib/db", () => ({ getDb: () => ({ event: { findFirst: mocks.findFirst } }) }));
 vi.mock("@/lib/auth", () => ({ requireUser: vi.fn() }));
 
 const user = (role: "SUPER_ADMIN" | "EVENT_ADMIN" | "EVENT_STAFF" | "VIEWER") => ({

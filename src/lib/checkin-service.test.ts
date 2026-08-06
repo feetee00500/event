@@ -9,13 +9,13 @@ const mocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({
-  prisma: {
+  getDb: () => ({
     event: mocks.event,
     ticket: mocks.ticket,
     attendee: mocks.attendee,
     checkin: mocks.checkin,
     $queryRaw: mocks.queryRaw,
-  },
+  }),
 }));
 vi.mock("@/lib/qr", () => ({ hashQrToken: vi.fn(() => "hash") }));
 

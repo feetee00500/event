@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: false,
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
   experimental: {
     staleTimes: { dynamic: 30 },
   },

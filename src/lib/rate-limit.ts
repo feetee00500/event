@@ -1,5 +1,9 @@
 type Bucket = { count: number; resetAt: number };
 
+/**
+ * Best-effort process-local limiter. Cloudflare Workers isolates do not share this map;
+ * production deployments should also configure a Cloudflare Rate Limiting rule for check-in endpoints.
+ */
 const buckets = new Map<string, Bucket>();
 const WINDOW_MS = 10_000;
 const MAX_REQUESTS = 12;
